@@ -176,7 +176,7 @@ local function fire(system, run, enemies, onKill)
     local x, y = run.player.x, run.player.y
     local range = (stats.range or 0) * (mod.range or 1)
     local target
-    if weapon.behavior ~= "pulse" then
+    if weapon.behavior ~= "pulse" and (weapon.behavior ~= "field" or not weapon.field_anchor) then
         if weapon.aim == "random" then
             target = randomTarget(system, enemies, x, y, range)
         else
@@ -199,7 +199,13 @@ local function fire(system, run, enemies, onKill)
         launch(system, weapon, attack, stats, mod, run.player, target, range)
     elseif weapon.behavior == "field" then
         attack.hit_ids = {}
-        attack.x, attack.y = target.x, target.y
+        if target then
+            attack.x, attack.y = target.x, target.y
+        end
+        attack.anchor = weapon.field_anchor
+        attack.start_tick = run.tick
+        attack.orbit_radius = stats.orbit_radius
+        attack.orbit_period_ticks = stats.orbit_period_ticks
         attack.interval_ticks = stats.interval_ticks
         attack.next_tick = run.tick
         attack.expires_tick = run.tick + math.max(1, math.floor(stats.duration_ticks * (mod.duration or 1)))
@@ -213,6 +219,7 @@ local function fire(system, run, enemies, onKill)
         end
     end
     system.next_fire_tick = run.tick + math.max(1, math.ceil(stats.cooldown_ticks * (mod.cooldown or 1)))
+    return true
 end
 
 -- First point along the swept projectile segment that overlaps the enemy.
@@ -368,11 +375,24 @@ local function stepProjectile(system, shot, run, enemies, dtSeconds, onKill)
     end
 end
 
-local function stepFields(system, tick, enemies, onKill)
+local function updateFieldCenter(field, player, tick)
+    if field.anchor == "player" then
+        field.x, field.y = player.x, player.y
+    elseif field.anchor == "orbit" then
+        local age = tick - field.start_tick
+        local angle = 2 * math.pi * (age % field.orbit_period_ticks) / field.orbit_period_ticks
+        field.x = player.x + field.orbit_radius * math.cos(angle)
+        field.y = player.y + field.orbit_radius * math.sin(angle)
+    end
+end
+
+local function stepFields(system, run, enemies, onKill)
+    local tick = run.tick
     local fields = system.fields
     local retained = 0
     for _, field in ipairs(fields) do
         if tick < field.expires_tick then
+            updateFieldCenter(field, run.player, tick)
             if tick >= field.next_tick then
                 pulse(system, field, enemies, onKill)
                 field.next_tick = field.next_tick + field.interval_ticks
@@ -386,14 +406,32 @@ local function stepFields(system, tick, enemies, onKill)
     end
 end
 
+local function readyFromTravel(system, player, threshold)
+    if not threshold then
+        return true
+    end
+    local travel = system.travel
+    if not travel then
+        system.travel = { x = player.x, y = player.y, distance = 0 }
+        return false
+    end
+    local dx, dy = player.x - travel.x, player.y - travel.y
+    travel.x, travel.y = player.x, player.y
+    travel.distance = math.min(threshold, travel.distance + math.sqrt(dx * dx + dy * dy))
+    return travel.distance + 1e-9 >= threshold
+end
+
 -- Called once per simulation tick. Kill notifications precede enemy cleanup.
 function Weapons.step(system, run, dtSeconds, onKill)
     local enemies = run.enemies.active
-    if run.tick >= system.next_fire_tick then
-        fire(system, run, enemies, onKill)
+    local travelDistance = data[system.id].levels[system.level].travel_distance
+    if readyFromTravel(system, run.player, travelDistance) and run.tick >= system.next_fire_tick then
+        if fire(system, run, enemies, onKill) and travelDistance then
+            system.travel.distance = 0
+        end
     end
 
-    stepFields(system, run.tick, enemies, onKill)
+    stepFields(system, run, enemies, onKill)
 
     local projectiles = system.projectiles
     local count = #projectiles

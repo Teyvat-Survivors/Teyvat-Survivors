@@ -95,4 +95,53 @@ return {
             { damage = 17, cooldown_ticks = 66, range = 15, speed = 28, radius = 0.56, pierce = 6, return_ratio = 1.6 },
         },
     },
+    dew_aura = {
+        label = "露潮护域",
+        behavior = "field",
+        field_anchor = "player",
+        levels = {
+            {
+                damage = 3, cooldown_ticks = 108, radius = 3.8,
+                duration_ticks = 90, interval_ticks = 15, max_hits_per_target = 6,
+            },
+            {
+                damage = 4, cooldown_ticks = 102, radius = 4.2,
+                duration_ticks = 96, interval_ticks = 12, max_hits_per_target = 8,
+            },
+        },
+    },
+    jade_satellite = {
+        label = "玉轮随星",
+        behavior = "field",
+        field_anchor = "orbit",
+        levels = {
+            {
+                damage = 7, cooldown_ticks = 160, radius = 0.7,
+                duration_ticks = 144, interval_ticks = 6, max_hits_per_target = 6,
+                orbit_radius = 3.2, orbit_period_ticks = 72,
+            },
+            {
+                damage = 9, cooldown_ticks = 156, radius = 0.85,
+                duration_ticks = 150, interval_ticks = 5, max_hits_per_target = 9,
+                orbit_radius = 3.7, orbit_period_ticks = 60,
+            },
+        },
+    },
+    step_quake = {
+        label = "踏尘震环",
+        behavior = "field",
+        field_anchor = "player",
+        levels = {
+            {
+                damage = 13, cooldown_ticks = 24, radius = 3,
+                duration_ticks = 1, interval_ticks = 1, max_hits_per_target = 1,
+                travel_distance = 4,
+            },
+            {
+                damage = 17, cooldown_ticks = 20, radius = 3.5,
+                duration_ticks = 1, interval_ticks = 1, max_hits_per_target = 1,
+                travel_distance = 3.6,
+            },
+        },
+    },
 }
