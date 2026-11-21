@@ -23,7 +23,8 @@ local function eligible(run, recipe)
     end
 
     for _, id in ipairs(recipe.passives) do
-        if build.passives[id] ~= passives[id].max_level then
+        local minimum = (recipe.passive_levels and recipe.passive_levels[id]) or passives[id].max_level
+        if (build.passives[id] or 0) < minimum then
             return false
         end
     end

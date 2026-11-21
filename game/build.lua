@@ -9,6 +9,7 @@ local function addCatalog(target, definitions, kind)
             kind = kind,
             label = definition.label or id,
             weight = definition.weight or 1,
+            upgrade_weight = definition.upgrade_weight,
             armory_unlock = definition.armory_unlock,
             max_level = definition.max_level or #definition.levels,
             per_level = definition.per_level,
@@ -42,6 +43,8 @@ function Build.new(randomUnit, weaponCatalog, startingWeapon, overrides, weaponU
     end)
     for _, item in ipairs(catalog) do
         assert(item.weight >= 0 and item.weight < math.huge, "invalid item weight")
+        assert(item.upgrade_weight == nil or (item.upgrade_weight >= 0 and item.upgrade_weight < math.huge),
+            "invalid owned item upgrade weight")
         assert(item.max_level >= 1 and item.max_level % 1 == 0, "invalid item level cap")
     end
 
@@ -90,7 +93,8 @@ local function candidates(build)
             owned, full = build.weapons, weaponsFull
         end
         local level = owned[item.id]
-        if item.weight > 0 and not item.armory_unlock and not build.banished[item.key]
+        local weight = (level and item.upgrade_weight) or item.weight
+        if weight > 0 and not item.armory_unlock and not build.banished[item.key]
             and ((level and level < item.max_level) or (not level and not full)) then
             pool[#pool + 1] = {
                 key = item.key,
@@ -98,7 +102,7 @@ local function candidates(build)
                 kind = item.kind,
                 label = item.label,
                 level = (level or 0) + 1,
-                weight = item.weight,
+                weight = weight,
             }
         end
     end

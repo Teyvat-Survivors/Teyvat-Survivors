@@ -1,4 +1,4 @@
-return {
+local weapons = {
     lantern_fanfare = {
         label = "灯华齐鸣",
         weight = 0,
@@ -367,3 +367,9 @@ return {
         },
     },
 }
+
+for id, weapon in pairs(require("data.evolved_weapons")) do
+    weapons[id] = weapon
+end
+
+return weapons
