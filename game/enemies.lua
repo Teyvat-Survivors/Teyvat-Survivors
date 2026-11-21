@@ -86,6 +86,7 @@ local function spawn(system, player, kindId)
     enemy.kind = kindId
     enemy.isTerminal = false
     enemy.isElite = kind.elite == true
+    enemy.treasureKind = kind.treasure_kind
     enemy.controlImmune = kind.controlImmune == true
     enemy.slowFactor, enemy.slowUntilTick, enemy.slowReadyTick = nil, nil, nil
     enemy.x = player.x + math.cos(angle) * distance

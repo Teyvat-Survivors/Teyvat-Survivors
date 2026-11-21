@@ -1,4 +1,29 @@
 return {
+    gale_script = {
+        label = "长风篇",
+        weight = 0,
+        behavior = "projectile",
+        levels = {
+            { damage = 36, cooldown_ticks = 37, range = 31, speed = 38, radius = 0.47, pierce = 3 },
+        },
+    },
+    rime_confluence = {
+        label = "风霜合鸣",
+        weight = 0,
+        behavior = "field",
+        levels = {
+            {
+                damage = 19, cooldown_ticks = 68, range = 21, radius = 4.8, knockback = 0.35,
+                duration_ticks = 54, interval_ticks = 12, max_hits_per_target = 4,
+            },
+        },
+    },
+    resonance_gift = {
+        label = "余音箓",
+        weight = 0,
+        behavior = "echo_magnet",
+        levels = { { cooldown_ticks = 83, radius = 21, pickup_cap = 9 } },
+    },
     stone_ward = {
         label = "砾石护壁",
         behavior = "ward",
