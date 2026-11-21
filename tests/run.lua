@@ -76,4 +76,14 @@ end
 
 dofile("tests/loot.lua")
 
+dofile("tests/enemy_roles.lua")
+
+do
+    local Loot = require("game.loot")
+    local run = Run.new(17)
+    local enemy = { id = 1, kind = "ember_ram", isElite = true, health = 0, x = 0, y = 0 }
+    local treasure = Loot.defeat(run.loot, enemy)
+    assert(treasure and treasure.kind == "treasure" and not Loot.defeat(run.loot, enemy))
+end
+
 dofile("tests/platform_probe.lua")
