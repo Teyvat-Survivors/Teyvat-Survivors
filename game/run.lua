@@ -5,6 +5,7 @@ local Perks = require("game.perks")
 local Loot = require("game.loot")
 local Build = require("game.build")
 local Characters = require("game.characters")
+local Modes = require("game.modes")
 local WeaponData = require("data.weapons")
 local stages = require("data.stages")
 local baseStats = require("data.powerups").base_stats
@@ -112,7 +113,8 @@ local function finish(run, outcome)
             tick = run.tick,
             kills = run.kills,
             level = run.progress.level,
-            coins = math.floor(run.loot.coins * run.base_stats.coin_multiplier),
+            coins = math.floor(run.loot.coins * run.base_stats.coin_multiplier * Modes.coinMultiplier(run.mode)),
+            cycles_completed = run.mode.endless and math.floor(run.tick / run.stage.duration_ticks) or nil,
         }
         emit(run, "finished")
     end
@@ -135,7 +137,7 @@ local function projectStats(run)
     run.base_weapon_modifiers, run.weapon_modifiers = stats, stats
 end
 
-local function newRun(seed, stage, weapon_id, base_stats, character)
+local function newRun(seed, stage, weapon_id, base_stats, character, options)
     if seed == nil then
         seed = 1
     end
@@ -147,11 +149,18 @@ local function newRun(seed, stage, weapon_id, base_stats, character)
     assert(stage.duration_ticks >= 1 and stage.duration_ticks % 1 == 0, "invalid stage duration")
     assert(stage.terminal_timeout_ticks >= 1 and stage.terminal_timeout_ticks % 1 == 0, "invalid finale duration")
     assert(stage.waves.capacity > 0 and stage.waves.types[stage.terminal_kind], "invalid finale enemy")
+    local source_stage = stage
+    local mode = Modes.resolve(options)
+    stage = Modes.stage(source_stage, mode)
     local base = copyBaseStats(base_stats)
     local bounds = stageBounds(stage.bounds)
     local run = {
         base_stats = base,
         stage = stage,
+        source_stage = source_stage,
+        mode = mode,
+        cycle = mode.endless and 1 or nil,
+        cycle_tick = mode.endless and 0 or nil,
         character = character,
         character_id = character and character.id,
         starting_weapon_id = weapon_id,
@@ -204,21 +213,21 @@ local function newRun(seed, stage, weapon_id, base_stats, character)
     return run
 end
 
-function Run.new(seed, stage, weapon_id, base_stats)
-    return newRun(seed, stage, weapon_id, base_stats)
+function Run.new(seed, stage, weapon_id, base_stats, options)
+    return newRun(seed, stage, weapon_id, base_stats, nil, options)
 end
 
-function Run.for_character(id, seed, stage, base_stats, unlocked)
+function Run.for_character(id, seed, stage, base_stats, unlocked, options)
     local character, reason = Characters.select(id, unlocked)
     if not character then
         return nil, reason
     end
-    return newRun(seed, stage, nil, base_stats, character)
+    return newRun(seed, stage, nil, base_stats, character, options)
 end
 
 function Run.restart(run, seed)
     if seed == nil then seed = run.seed end
-    local fresh = newRun(seed, run.stage, run.starting_weapon_id, run.base_stats, run.character)
+    local fresh = newRun(seed, run.source_stage, run.starting_weapon_id, run.base_stats, run.character, run.mode)
     if run.perks then
         Run.enable_perks(fresh, {
             unlocked = run.perks.unlocked,
@@ -227,6 +236,12 @@ function Run.restart(run, seed)
         })
     end
     return fresh
+end
+
+function Run.finish_endless(run)
+    if run.result or not run.mode.endless then return false end
+    finish(run, "retired")
+    return true
 end
 
 local function applyWeaponRank(run, id, rank)
@@ -394,7 +409,15 @@ function Run.update(run, seconds, move_x, move_y)
         if settleDefeat(run) then
             return completed
         end
-        if run.tick == run.stage.duration_ticks then
+        if run.mode.endless then
+            run.cycle_tick = run.cycle_tick + 1
+            if run.cycle_tick > run.stage.duration_ticks then
+                run.cycle = run.cycle + 1
+                run.cycle_tick = 1
+                Enemies.begin_cycle(run.enemies, run.tick - 1, Modes.pressure(run.cycle))
+                emit(run, "cycle_started")
+            end
+        elseif run.tick == run.stage.duration_ticks then
             local terminal = Enemies.begin_finale(run.enemies, player, run.stage.terminal_kind)
             run.terminal_id = terminal.id
             emit(run, "finale_started")
