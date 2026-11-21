@@ -13,3 +13,5 @@ for _, seed in ipairs({ 0, -1, 1.5, 2147483647, "42", math.huge, 0 / 0 }) do
 end
 
 print("Lua run initialization passed")
+
+dofile("tests/motion.lua")
