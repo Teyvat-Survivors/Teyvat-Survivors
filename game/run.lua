@@ -5,6 +5,7 @@ local Loot = require("game.loot")
 local Build = require("game.build")
 local WeaponData = require("data.weapons")
 local stages = require("data.stages")
+local baseStats = require("data.powerups").base_stats
 
 local Run = {}
 
@@ -12,7 +13,6 @@ local STEP = 1 / 60
 local MAX_FRAME_TIME = 0.25
 local WORLD_EDGE = 96
 local SEED_MODULUS = 2147483647
-local PLAYER_SPEED, PLAYER_MAX_HEALTH = 6, 100
 
 Run.step_seconds = STEP
 
@@ -37,6 +37,16 @@ local function movement(x, y)
     return x, y
 end
 
+local function copyBaseStats(source)
+    local result = {}
+    for key, base in pairs(baseStats) do
+        local value = source and source[key] or base
+        assert(finite(value) and value > 0, "invalid profile modifier: " .. key)
+        result[key] = value
+    end
+    return result
+end
+
 local function emit(run, kind)
     run.events[#run.events + 1] = { kind = kind, tick = run.tick }
 end
@@ -49,13 +59,13 @@ local function finish(run, outcome)
             tick = run.tick,
             kills = run.kills,
             level = run.progress.level,
-            coins = run.loot.coins,
+            coins = math.floor(run.loot.coins * run.base_stats.coin_multiplier),
         }
         emit(run, "finished")
     end
 end
 
-function Run.new(seed, stage, weapon_id)
+function Run.new(seed, stage, weapon_id, profile_stats)
     if seed == nil then
         seed = 1
     end
@@ -67,7 +77,9 @@ function Run.new(seed, stage, weapon_id)
     assert(stage.duration_ticks >= 1 and stage.duration_ticks % 1 == 0, "invalid stage duration")
     assert(stage.terminal_timeout_ticks >= 1 and stage.terminal_timeout_ticks % 1 == 0, "invalid finale duration")
     assert(stage.waves.capacity > 0 and stage.waves.types[stage.terminal_kind], "invalid finale enemy")
+    local base = copyBaseStats(profile_stats)
     local run = {
+        base_stats = base,
         stage = stage,
         kills = 0,
         seed = seed,
@@ -78,9 +90,9 @@ function Run.new(seed, stage, weapon_id)
         events = {},
         bounds = { min_x = -WORLD_EDGE, max_x = WORLD_EDGE, min_y = -WORLD_EDGE, max_y = WORLD_EDGE },
         player = {
-            x = 0, y = 0, radius = 0.42, speed = PLAYER_SPEED, armor = 0,
+            x = 0, y = 0, radius = 0.42, speed = base.speed, armor = 0,
             facing_x = 1, facing_y = 0,
-            health = PLAYER_MAX_HEALTH, max_health = PLAYER_MAX_HEALTH,
+            health = base.max_health, max_health = base.max_health,
         },
     }
     local function randomUnit()
@@ -91,6 +103,7 @@ function Run.new(seed, stage, weapon_id)
     run.weapon_systems = { run.weapons }
     run.build = Build.new(randomUnit, WeaponData, run.weapons.id, stage.build_rules)
     run.weapon_modifiers = Build.stats(run.build)
+    run.weapon_modifiers.damage = base.damage_multiplier
     run.progress = Progress.new()
     local lootSeed = (seed * 16807) % SEED_MODULUS
     run.loot = Loot.new(function()
@@ -111,7 +124,7 @@ end
 
 function Run.restart(run, seed)
     if seed == nil then seed = run.seed end
-    return Run.new(seed, run.stage, run.weapons.id)
+    return Run.new(seed, run.stage, run.weapons.id, run.base_stats)
 end
 
 local function applyWeaponRank(run, id, rank)
@@ -128,11 +141,12 @@ end
 local function applyPassives(run)
     local stats = Build.stats(run.build)
     local player = run.player
-    local maxHealth = PLAYER_MAX_HEALTH + stats.max_health_bonus
-    player.speed = PLAYER_SPEED * stats.speed
+    local maxHealth = run.base_stats.max_health + stats.max_health_bonus
+    player.speed = run.base_stats.speed * stats.speed
     player.armor = stats.armor
     player.health = math.min(maxHealth, player.health + (maxHealth - player.max_health))
     player.max_health = maxHealth
+    stats.damage = stats.damage * run.base_stats.damage_multiplier
     run.weapon_modifiers = stats
 end
 
