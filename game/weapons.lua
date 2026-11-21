@@ -1,4 +1,5 @@
 local Enemies = require("game.enemies")
+local Support = require("game.support")
 local data = require("data.weapons")
 local Weapons = {}
 
@@ -173,6 +174,14 @@ local function fire(system, run, enemies, onKill)
     local weapon = data[system.id]
     local stats = weapon.levels[system.level]
     local mod = run.weapon_modifiers or neutralModifiers
+    local cooldown = math.max(1, math.ceil(stats.cooldown_ticks * (mod.cooldown or 1)))
+    local supported = Support.activate(weapon.behavior, stats, mod, run, enemies, onKill)
+    if supported ~= nil then
+        if supported then
+            system.next_fire_tick = run.tick + cooldown
+        end
+        return
+    end
     local x, y = run.player.x, run.player.y
     local range = (stats.range or 0) * (mod.range or 1)
     local target
@@ -218,7 +227,7 @@ local function fire(system, run, enemies, onKill)
             return
         end
     end
-    system.next_fire_tick = run.tick + math.max(1, math.ceil(stats.cooldown_ticks * (mod.cooldown or 1)))
+    system.next_fire_tick = run.tick + cooldown
     return true
 end
 
