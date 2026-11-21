@@ -34,6 +34,13 @@ for second = 20, duration_seconds - 10, 10 do
             count = 1,
         }
     end
+    if second == 430 or second == 1060 then
+        windward_spawns[#windward_spawns + 1] = {
+            tick = second * ticks_per_second,
+            kind = "armory_warden",
+            count = 1,
+        }
+    end
 end
 
 local function patternedSpawns(duration, pattern)
@@ -86,6 +93,18 @@ local ridge_spawns = patternedSpawns(ridge_duration, {
     { interval = 17, groups = { { kind = "sentinel", count = 1 }, { kind = "gale_runner", count = 2 } } },
 })
 
+local windward_waves = waves(windward_spawns, "tempest", {
+    radius = 1.4,
+    speed = 5.5,
+    health = 210,
+    contactDamage = 20,
+    frenzy = { healthFraction = 0.45, speed = 7.1, contactDamage = 25 },
+})
+windward_waves.types.armory_warden = {
+    radius = 0.68, speed = 4.1, health = 86, contactDamage = 14, xp = 9,
+    elite = true, treasure_kind = "armory",
+}
+
 return {
     windward = {
         id = "windward",
@@ -93,13 +112,7 @@ return {
         duration_ticks = duration_seconds * ticks_per_second,
         terminal_kind = "tempest",
         terminal_timeout_ticks = 24 * ticks_per_second,
-        waves = waves(windward_spawns, "tempest", {
-            radius = 1.4,
-            speed = 5.5,
-            health = 210,
-            contactDamage = 20,
-            frenzy = { healthFraction = 0.45, speed = 7.1, contactDamage = 25 },
-        }),
+        waves = windward_waves,
     },
     moon_reeds = {
         id = "moon_reeds",

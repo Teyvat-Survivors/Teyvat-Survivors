@@ -203,7 +203,7 @@ local function newRun(seed, stage, weapon_id, base_stats, character, options)
     end
     run.enemies = Enemies.new(stage.waves, randomUnit)
     local starters = character and Characters.loadout(character, randomUnit) or { weapon_id or "wind_blade" }
-    run.build = Build.new(randomUnit, WeaponData, starters, stage.build_rules)
+    run.build = Build.new(randomUnit, WeaponData, starters, stage.build_rules, options and options.weapon_unlocks)
     run.weapon_systems = {}
     for i, id in ipairs(starters) do
         run.weapon_systems[i] = Weapons.new(id, randomUnit)
@@ -244,7 +244,9 @@ end
 
 function Run.restart(run, seed)
     if seed == nil then seed = run.seed end
-    local fresh = newRun(seed, run.source_stage, run.starting_weapon_id, run.base_stats, run.character, run.mode)
+    local options = { weapon_unlocks = run.build.weapon_unlocks }
+    for key, value in pairs(run.mode) do options[key] = value end
+    local fresh = newRun(seed, run.source_stage, run.starting_weapon_id, run.base_stats, run.character, options)
     if run.perks then
         Run.enable_perks(fresh, {
             unlocked = run.perks.unlocked,

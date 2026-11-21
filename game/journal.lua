@@ -96,7 +96,7 @@ function Journal.achievements(journal)
 end
 
 function Journal.unlocks(journal)
-    local flags = { stages = copySet(Data.starting_stages), characters = {}, perks = {} }
+    local flags = { stages = copySet(Data.starting_stages), characters = {}, perks = {}, weapons = {} }
     for _, milestone in ipairs(Data.milestones) do
         if journal.earned[milestone.id] then
             for kind, grants in pairs(milestone.grants) do
