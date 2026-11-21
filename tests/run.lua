@@ -93,4 +93,6 @@ end
 
 dofile("tests/projectile_families.lua")
 
+dofile("tests/fields.lua")
+
 dofile("tests/platform_probe.lua")
