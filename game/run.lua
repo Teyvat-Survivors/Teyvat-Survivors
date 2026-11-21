@@ -1,3 +1,6 @@
+local Enemies = require("game.enemies")
+local waves = require("data.waves")
+
 local Run = {}
 
 local STEP = 1 / 60
@@ -36,7 +39,7 @@ function Run.new(seed)
         type(seed) == "number" and seed >= 1 and seed < SEED_MODULUS and seed % 1 == 0,
         "run seed must be an integer from 1 to 2147483646"
     )
-    return {
+    local run = {
         seed = seed,
         random_state = seed,
         tick = 0,
@@ -45,6 +48,10 @@ function Run.new(seed)
         events = {},
         player = { x = 0, y = 0, speed = 6, radius = 0.42, health = 100, max_health = 100 },
     }
+    run.enemies = Enemies.new(waves, function()
+        return Run.random(run)
+    end)
+    return run
 end
 
 function Run.random(run)
@@ -83,6 +90,7 @@ function Run.update(run, seconds, move_x, move_y)
         local player = run.player
         player.x = constrain(player.x + x * player.speed * STEP)
         player.y = constrain(player.y + y * player.speed * STEP)
+        Enemies.step(run.enemies, run, STEP)
     end
     return steps
 end

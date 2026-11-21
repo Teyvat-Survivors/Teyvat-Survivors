@@ -15,5 +15,6 @@ end
 print("Lua run initialization passed")
 
 dofile("tests/motion.lua")
+dofile("tests/enemies.lua")
 
 dofile("tests/platform_probe.lua")
