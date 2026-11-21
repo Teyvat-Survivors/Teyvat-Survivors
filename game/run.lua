@@ -1,6 +1,7 @@
 local Enemies = require("game.enemies")
 local Weapons = require("game.weapons")
 local Progress = require("game.progress")
+local Loot = require("game.loot")
 local Build = require("game.build")
 local WeaponData = require("data.weapons")
 local stages = require("data.stages")
@@ -48,6 +49,7 @@ local function finish(run, outcome)
             tick = run.tick,
             kills = run.kills,
             level = run.progress.level,
+            coins = run.loot.coins,
         }
         emit(run, "finished")
     end
@@ -88,12 +90,18 @@ function Run.new(seed, stage, weapon_id)
     run.build = Build.new(randomUnit, WeaponData, run.weapons.id, stage.build_rules)
     run.weapon_modifiers = Build.stats(run.build)
     run.progress = Progress.new()
+    local lootSeed = (seed * 16807) % SEED_MODULUS
+    run.loot = Loot.new(function()
+        lootSeed = (lootSeed * 48271) % SEED_MODULUS
+        return (lootSeed - 1) / (SEED_MODULUS - 1)
+    end)
     run.on_defeat = function(enemy)
         run.kills = run.kills + 1
         if enemy.id == run.terminal_id then
             finish(run, "finale_defeated")
         else
             Progress.drop(run.progress, enemy)
+            Loot.defeat(run.loot, enemy)
         end
     end
     return run
@@ -178,6 +186,16 @@ function Run.banish(run, token, option)
     return true
 end
 
+function Run.choose_treasure(run, token, option)
+    if run.result or not Loot.choose(run.loot, run, token, option) then
+        return false
+    end
+    if option == "upgrade" then
+        run.build.weapons[run.weapons.id] = run.weapons.level
+    end
+    return true
+end
+
 function Run.random(run)
     run.random_state = (run.random_state * 48271) % SEED_MODULUS
     return (run.random_state - 1) / (SEED_MODULUS - 1)
@@ -202,7 +220,7 @@ function Run.update(run, seconds, move_x, move_y)
     if move_y == nil then move_y = 0 end
     assert(finite(seconds) and seconds >= 0, "frame time must be finite and nonnegative")
     assert(finite(move_x) and finite(move_y), "movement must be finite")
-    if run.result or run.paused or Progress.hasChoice(run.progress) then
+    if run.result or run.paused or Progress.hasChoice(run.progress) or Loot.hasChoice(run.loot) then
         return 0
     end
     local x, y = movement(move_x, move_y)
@@ -234,6 +252,12 @@ function Run.update(run, seconds, move_x, move_y)
         end
         if run.terminal_id and run.tick >= run.stage.duration_ticks + run.stage.terminal_timeout_ticks then
             finish(run, "finale_survived")
+            return completed
+        end
+        run.loot_upgrade_slots_full = #run.weapon_systems >= run.build.rules.weapon_slots
+        Loot.step(run.loot, run)
+        if Loot.hasChoice(run.loot) then
+            run.accumulator = 0
             return completed
         end
         Progress.step(run.progress, run, STEP)

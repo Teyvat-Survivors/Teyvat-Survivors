@@ -55,6 +55,10 @@ assert(not escape.result and #escape.enemies.active == 1)
 assert(escape.enemies.active[1].id == escape.terminal_id, "the finale enemy remains active outside the ordinary cull range")
 
 local function advance(run)
+    if run.loot.choices then
+        assert(Run.choose_treasure(run, run.loot.choices.token, "coins"))
+        return
+    end
     local choice = run.progress.choices
     if choice then
         local selected = choice.options[1].key

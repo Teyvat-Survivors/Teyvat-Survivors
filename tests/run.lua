@@ -74,4 +74,6 @@ do
     assert(not pcall(Run.restart, pulse, false))
 end
 
+dofile("tests/loot.lua")
+
 dofile("tests/platform_probe.lua")
