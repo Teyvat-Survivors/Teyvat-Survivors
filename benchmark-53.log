@@ -1,0 +1,23 @@
+Lua 5.3 seed=21713 frames=360 sim=6.00s tick=60Hz cell=48
+Times are CPU ms per frame; memory is KiB above post-setup GC.
+
+100 entities: 60 enemies + 25 shots + 15 pickups
+linear/fresh  p50= 0.366 p95= 0.542 max= 1.316 move= 0.024 collision= 0.369 mem_peak= 205.1 mem_gc=   6.5 candidates=  540000 hits=  1060 delta=    +0 differing=  0 renew=  622 new=  622 fingerprint=1668391989
+grid/fresh    p50= 0.065 p95= 0.127 max= 0.171 move= 0.025 collision= 0.047 mem_peak= 257.6 mem_gc=  23.9 candidates=   14373 hits=  1060 delta=    +0 differing=  0 renew=  622 new=  622 fingerprint=1668391989
+grid/reuse    p50= 0.062 p95= 0.083 max= 0.132 move= 0.021 collision= 0.044 mem_peak=  25.2 mem_gc=  23.9 candidates=   14373 hits=  1060 delta=    +0 differing=  0 renew=  622 new=    0 fingerprint=1668391989
+grid/stagger  p50= 0.050 p95= 0.068 max= 0.183 move= 0.020 collision= 0.032 mem_peak=  25.2 mem_gc=  23.9 candidates=    7266 hits=   541 delta=  -519 differing=262 renew=  622 new=    0 fingerprint=0678200213
+grid/move30   p50= 0.061 p95= 0.103 max= 0.206 move= 0.017 collision= 0.048 mem_peak=  25.3 mem_gc=  24.0 candidates=   14365 hits=  1060 delta=    +0 differing= 76 renew=  622 new=    0 fingerprint=0623735836
+
+300 entities: 180 enemies + 75 shots + 45 pickups
+linear/fresh  p50= 3.290 p95= 4.320 max= 7.047 move= 0.075 collision= 3.367 mem_peak= 532.9 mem_gc=  19.0 candidates= 4860000 hits=  9935 delta=    +0 differing=  0 renew= 1866 new= 1866 fingerprint=1811435797
+grid/fresh    p50= 0.247 p95= 0.356 max= 0.937 move= 0.066 collision= 0.197 mem_peak= 596.6 mem_gc=  45.5 candidates=  130378 hits=  9935 delta=    +0 differing=  0 renew= 1866 new= 1866 fingerprint=1811435797
+grid/reuse    p50= 0.236 p95= 0.307 max= 0.399 move= 0.059 collision= 0.185 mem_peak=  46.8 mem_gc=  45.5 candidates=  130378 hits=  9935 delta=    +0 differing=  0 renew= 1866 new=    0 fingerprint=1811435797
+grid/stagger  p50= 0.169 p95= 0.205 max= 0.818 move= 0.059 collision= 0.118 mem_peak=  46.8 mem_gc=  45.5 candidates=   65834 hits=  5025 delta= -4910 differing=360 renew= 1866 new=    0 fingerprint=1296026640
+grid/move30   p50= 0.229 p95= 0.288 max= 0.958 move= 0.049 collision= 0.191 mem_peak=  46.7 mem_gc=  45.4 candidates=  130277 hits=  9892 delta=   -43 differing=308 renew= 1866 new=    0 fingerprint=1724602866
+
+600 entities: 360 enemies + 150 shots + 90 pickups
+linear/fresh  p50=13.226 p95=15.748 max=29.201 move= 0.151 collision=13.387 mem_peak= 875.3 mem_gc=  37.7 candidates=19440000 hits= 40091 delta=    +0 differing=  0 renew= 3734 new= 3734 fingerprint=1112209622
+grid/fresh    p50= 0.703 p95= 1.764 max= 7.248 move= 0.188 collision= 0.666 mem_peak=1008.4 mem_gc=  76.6 candidates=  545384 hits= 40091 delta=    +0 differing=  0 renew= 3734 new= 3734 fingerprint=1112209622
+grid/reuse    p50= 0.679 p95= 0.976 max=10.297 move= 0.126 collision= 0.649 mem_peak=  77.9 mem_gc=  76.6 candidates=  545384 hits= 40091 delta=    +0 differing=  0 renew= 3734 new=    0 fingerprint=1112209622
+grid/stagger  p50= 0.448 p95= 0.599 max= 1.423 move= 0.125 collision= 0.340 mem_peak=  77.9 mem_gc=  76.6 candidates=  275730 hits= 20304 delta=-19787 differing=360 renew= 3734 new=    0 fingerprint=1154595406
+grid/move30   p50= 0.659 p95= 0.871 max= 1.720 move= 0.100 collision= 0.584 mem_peak=  77.8 mem_gc=  76.5 candidates=  545192 hits= 40117 delta=   +26 differing=357 renew= 3734 new=    0 fingerprint=1828316414
