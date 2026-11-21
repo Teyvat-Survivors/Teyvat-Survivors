@@ -3,6 +3,7 @@ local Weapons = require("game.weapons")
 local Progress = require("game.progress")
 local Loot = require("game.loot")
 local Build = require("game.build")
+local Characters = require("game.characters")
 local WeaponData = require("data.weapons")
 local stages = require("data.stages")
 local baseStats = require("data.powerups").base_stats
@@ -91,6 +92,9 @@ local function copyBaseStats(source)
         assert(finite(value) and value > 0, "invalid profile modifier: " .. key)
         result[key] = value
     end
+    local armor = source and source.armor or 0
+    assert(finite(armor) and armor >= 0, "invalid base armor")
+    result.armor = armor
     return result
 end
 
@@ -103,6 +107,7 @@ local function finish(run, outcome)
         run.result = {
             outcome = outcome,
             stage = run.stage.id,
+            character = run.character_id,
             tick = run.tick,
             kills = run.kills,
             level = run.progress.level,
@@ -112,7 +117,24 @@ local function finish(run, outcome)
     end
 end
 
-function Run.new(seed, stage, weapon_id, profile_stats)
+local function projectStats(run)
+    local stats = Build.stats(run.build)
+    if run.character then
+        for name, bonus in pairs(Characters.bonuses(run.character, run.progress.level)) do
+            stats[name] = stats[name] + bonus
+        end
+    end
+    local player, base = run.player, run.base_stats
+    local maxHealth = math.max(1, base.max_health + stats.max_health_bonus)
+    player.speed = base.speed * stats.speed
+    player.armor = base.armor + stats.armor
+    player.health = math.max(0, math.min(maxHealth, player.health + maxHealth - player.max_health))
+    player.max_health = maxHealth
+    stats.damage = stats.damage * base.damage_multiplier
+    run.weapon_modifiers = stats
+end
+
+local function newRun(seed, stage, weapon_id, base_stats, character)
     if seed == nil then
         seed = 1
     end
@@ -124,11 +146,14 @@ function Run.new(seed, stage, weapon_id, profile_stats)
     assert(stage.duration_ticks >= 1 and stage.duration_ticks % 1 == 0, "invalid stage duration")
     assert(stage.terminal_timeout_ticks >= 1 and stage.terminal_timeout_ticks % 1 == 0, "invalid finale duration")
     assert(stage.waves.capacity > 0 and stage.waves.types[stage.terminal_kind], "invalid finale enemy")
-    local base = copyBaseStats(profile_stats)
+    local base = copyBaseStats(base_stats)
     local bounds = stageBounds(stage.bounds)
     local run = {
         base_stats = base,
         stage = stage,
+        character = character,
+        character_id = character and character.id,
+        starting_weapon_id = weapon_id,
         kills = 0,
         seed = seed,
         random_state = seed,
@@ -141,7 +166,7 @@ function Run.new(seed, stage, weapon_id, profile_stats)
         player = {
             x = constrain(0, bounds.min_x, bounds.max_x),
             y = constrain(0, bounds.min_y, bounds.max_y),
-            radius = 0.42, speed = base.speed, armor = 0,
+            radius = 0.42, speed = base.speed, armor = base.armor,
             facing_x = 1, facing_y = 0,
             health = base.max_health, max_health = base.max_health,
         },
@@ -150,14 +175,16 @@ function Run.new(seed, stage, weapon_id, profile_stats)
         return Run.random(run)
     end
     run.enemies = Enemies.new(stage.waves, randomUnit)
-    run.weapons = Weapons.new(weapon_id, randomUnit)
-    run.weapon_systems = { run.weapons }
-    run.starting_weapon_id = run.weapons.id
+    local starters = character and Characters.loadout(character, randomUnit) or { weapon_id or "wind_blade" }
+    run.build = Build.new(randomUnit, WeaponData, starters, stage.build_rules)
+    run.weapon_systems = {}
+    for i, id in ipairs(starters) do
+        run.weapon_systems[i] = Weapons.new(id, randomUnit)
+    end
+    run.weapons = run.weapon_systems[1]
     run.evolutions = {}
-    run.build = Build.new(randomUnit, WeaponData, run.weapons.id, stage.build_rules)
-    run.weapon_modifiers = Build.stats(run.build)
-    run.weapon_modifiers.damage = base.damage_multiplier
     run.progress = Progress.new()
+    projectStats(run)
     local lootSeed = (seed * 16807) % SEED_MODULUS
     run.loot = Loot.new(function()
         lootSeed = (lootSeed * 48271) % SEED_MODULUS
@@ -175,9 +202,21 @@ function Run.new(seed, stage, weapon_id, profile_stats)
     return run
 end
 
+function Run.new(seed, stage, weapon_id, base_stats)
+    return newRun(seed, stage, weapon_id, base_stats)
+end
+
+function Run.for_character(id, seed, stage, base_stats, unlocked)
+    local character, reason = Characters.select(id, unlocked)
+    if not character then
+        return nil, reason
+    end
+    return newRun(seed, stage, nil, base_stats, character)
+end
+
 function Run.restart(run, seed)
     if seed == nil then seed = run.seed end
-    return Run.new(seed, run.stage, run.starting_weapon_id, run.base_stats)
+    return newRun(seed, run.stage, run.starting_weapon_id, run.base_stats, run.character)
 end
 
 local function applyWeaponRank(run, id, rank)
@@ -191,18 +230,6 @@ local function applyWeaponRank(run, id, rank)
     run.weapon_systems[#run.weapon_systems + 1] = weapon
 end
 
-local function applyPassives(run)
-    local stats = Build.stats(run.build)
-    local player = run.player
-    local maxHealth = run.base_stats.max_health + stats.max_health_bonus
-    player.speed = run.base_stats.speed * stats.speed
-    player.armor = stats.armor
-    player.health = math.min(maxHealth, player.health + (maxHealth - player.max_health))
-    player.max_health = maxHealth
-    stats.damage = stats.damage * run.base_stats.damage_multiplier
-    run.weapon_modifiers = stats
-end
-
 function Run.choose(run, token, option)
     if run.result then
         return false
@@ -214,7 +241,7 @@ function Run.choose(run, token, option)
     if action.kind == "weapon" then
         applyWeaponRank(run, action.id, action.level)
     elseif action.kind == "passive" then
-        applyPassives(run)
+        projectStats(run)
     else
         local player = run.player
         player.health = math.min(player.max_health, player.health + action.amount)
@@ -243,7 +270,11 @@ function Run.skip(run, token)
     if not action then
         return false
     end
+    local previousLevel = run.progress.level
     Progress.settleChoice(run.progress, run, action.experience_fraction)
+    if run.progress.level ~= previousLevel then
+        projectStats(run)
+    end
     return true
 end
 
@@ -338,7 +369,11 @@ function Run.update(run, seconds, move_x, move_y)
             run.accumulator = 0
             return completed
         end
+        local previousLevel = run.progress.level
         Progress.step(run.progress, run, STEP)
+        if run.progress.level ~= previousLevel then
+            projectStats(run)
+        end
         if Progress.hasChoice(run.progress) then
             run.accumulator = 0
             return completed
