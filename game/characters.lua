@@ -36,7 +36,12 @@ function Characters.loadout(definition, randomUnit)
         local choices = definition.random_starters
         local draw = randomUnit()
         assert(type(draw) == "number" and draw >= 0 and draw < 1, "random starter needs a draw in [0, 1)")
-        return { choices[math.floor(draw * #choices) + 1] }
+        local starters = {}
+        for i, id in ipairs(definition.starters or {}) do
+            starters[i] = id
+        end
+        starters[#starters + 1] = choices[math.floor(draw * #choices) + 1]
+        return starters
     end
     return definition.starters
 end
@@ -57,6 +62,29 @@ function Characters.bonuses(definition, level)
         end
     end
     return bonuses
+end
+
+function Characters.combatModifiers(definition, run, moving, output)
+    local base, combat = run.base_weapon_modifiers, definition.combat
+    if not combat or (combat.at and run.progress.level < combat.at) then
+        return base
+    end
+
+    local active = (combat.when == "moving" and moving)
+        or (combat.when == "still" and not moving)
+        or (combat.when == "wounded" and run.player.health <= run.player.max_health * combat.threshold)
+        or (combat.when == "lean" and #run.weapon_systems <= combat.threshold)
+    if not active then
+        return base
+    end
+
+    for name, value in pairs(base) do
+        output[name] = value
+    end
+    for name, bonus in pairs(combat.bonuses) do
+        output[name] = output[name] + bonus
+    end
+    return output
 end
 
 return Characters

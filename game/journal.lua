@@ -40,17 +40,24 @@ local function loadSet(saved, catalogue)
     return copySet(saved)
 end
 
-local function evaluate(journal, completedRuns, wonStage)
-    local weaponCount = 0
-    for _ in pairs(journal.collection.weapons) do
-        weaponCount = weaponCount + 1
-    end
+local function count(collection)
+    local size = 0
+    for _ in pairs(collection) do size = size + 1 end
+    return size
+end
+
+local function evaluate(journal, completedRuns, victory)
+    local weapons = count(journal.collection.weapons)
+    local characters = count(journal.collection.characters)
     local earned = journal.earned
     for _, milestone in ipairs(Data.milestones) do
         if (not milestone.completed_runs or completedRuns >= milestone.completed_runs)
-            and (not milestone.win_stage or wonStage == milestone.win_stage)
+            and (not milestone.win_stage or (victory and victory.stage == milestone.win_stage))
+            and (not milestone.win_character or (victory and victory.character == milestone.win_character))
+            and (not milestone.min_win_level or (victory and victory.level and victory.level >= milestone.min_win_level))
             and (not milestone.requires or earned[milestone.requires])
-            and (not milestone.discovered_weapons or weaponCount >= milestone.discovered_weapons) then
+            and (not milestone.discovered_weapons or weapons >= milestone.discovered_weapons)
+            and (not milestone.discovered_characters or characters >= milestone.discovered_characters) then
             earned[milestone.id] = true
         end
     end
@@ -113,6 +120,7 @@ function Journal.valid_result(result)
     return (result.stage == nil or type(result.stage) == "string")
         and (result.character == nil or type(result.character) == "string")
         and (result.weapons == nil or validSet(result.weapons, Weapons))
+        and (result.level == nil or (type(result.level) == "number" and result.level >= 1 and result.level % 1 == 0))
 end
 
 function Journal.credit(journal, result, completedRuns, won)
@@ -126,7 +134,7 @@ function Journal.credit(journal, result, completedRuns, won)
     for id in pairs(result.weapons or {}) do
         collection.weapons[id] = true
     end
-    evaluate(journal, completedRuns, won and result.stage or nil)
+    evaluate(journal, completedRuns, won and result or nil)
 end
 
 return Journal

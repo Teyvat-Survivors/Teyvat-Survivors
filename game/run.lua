@@ -179,6 +179,7 @@ local function newRun(seed, stage, weapon_id, base_stats, character, options)
         cycle = mode.endless and 1 or nil,
         cycle_tick = mode.endless and 0 or nil,
         character = character,
+        character_combat_stats = character and character.combat and {} or nil,
         character_id = character and character.id,
         starting_weapon_id = weapon_id,
         kills = 0,
@@ -418,6 +419,7 @@ function Run.update(run, seconds, move_x, move_y)
     for completed = 1, steps do
         run.tick = run.tick + 1
         local player = run.player
+        local priorX, priorY = player.x, player.y
         if x ~= 0 or y ~= 0 then
             player.facing_x, player.facing_y = x, y
         end
@@ -445,10 +447,16 @@ function Run.update(run, seconds, move_x, move_y)
         if settleDefeat(run) then
             return completed
         end
-        if run.perks then
-            run.weapon_modifiers = Perks.stats(
-                run.perks, run.base_weapon_modifiers, run.tick, x ~= 0 or y ~= 0, run.perk_stats)
+        local moving = x ~= 0 or y ~= 0
+        local modifiers = run.base_weapon_modifiers
+        if run.character_combat_stats then
+            local displaced = player.x ~= priorX or player.y ~= priorY
+            modifiers = Characters.combatModifiers(run.character, run, displaced, run.character_combat_stats)
         end
+        if run.perks then
+            modifiers = Perks.stats(run.perks, modifiers, run.tick, moving, run.perk_stats)
+        end
+        run.weapon_modifiers = modifiers
         for _, weapon in ipairs(run.weapon_systems) do
             Weapons.step(weapon, run, STEP, run.on_defeat)
             if run.result then break end

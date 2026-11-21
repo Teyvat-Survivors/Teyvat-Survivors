@@ -27,15 +27,23 @@ local function grantLevels(run, to)
 end
 
 do
-    local unlocks = { paired_wayfinder = true, unwritten = true }
+    local unlocks, locked = {}, 0
+    for _, definition in ipairs(Roster) do
+        if definition.unlock then
+            unlocks[definition.unlock] = true
+            locked = locked + 1
+        end
+    end
     local visible = Characters.list()
     local complete = Characters.list(unlocks)
-    assert(#visible == #Roster - 2 and #complete == #Roster, "unlocks make hidden characters selectable")
+    assert(#visible == #Roster - locked and #complete == #Roster, "unlocks make hidden characters selectable")
     local seen = {}
     for _, option in ipairs(complete) do
         assert(not seen[option.id] and #option.label > 0)
         seen[option.id] = true
-        local started = assert(Run.for_character(option.id, 42, stage, nil, unlocks))
+        local started = assert(Run.for_character(option.id, 42, stage, nil, unlocks, {
+            weapon_unlocks = { lantern_fanfare = true },
+        }))
         assert(started.character_id == option.id and started.weapons and started.player.health == started.player.max_health)
         assert(started.build.weapons[started.weapons.id] == 1)
     end
@@ -115,6 +123,70 @@ do
     Run.update(survivor, 0.1)
     assert(survivor.result.outcome == "finale_survived" and survivor.result.character == "echo_fugitive",
         "the ordinary settlement records character identity for future unlock conditions")
+end
+
+do
+    local role = assert(Run.for_character("sky_keeper", 13, stage))
+    role.enemies.active[1] = { id = 5, x = 3, y = 0, radius = 0.5, health = 800, speed = 0, contactDamage = 0 }
+    Run.update(role, Run.step_seconds)
+    local strike = role.weapons.fields[1]
+    assert(strike and strike.crit_chance == 0.25, "the stillness bonus enters an actual cast")
+    Run.update(role, Run.step_seconds, 1)
+    assert(role.weapon_modifiers.crit_chance == 0 and strike.crit_chance == 0.25,
+        "movement removes the bonus for new casts while a scheduled attack keeps its own snapshot")
+end
+
+do
+    local role = assert(Run.for_character("petal_runner", 14, stage))
+    Run.update(role, Run.step_seconds, 1)
+    near(role.weapon_modifiers.projectile_speed, 1)
+    grantLevels(role, 3)
+    while role.progress.choices do
+        assert(Run.choose(role, role.progress.choices.token, "passive:sprout_tea"))
+    end
+    Run.update(role, Run.step_seconds, 1)
+    near(role.weapon_modifiers.projectile_speed, 1.24)
+    role.player.x = role.bounds.max_x
+    Run.update(role, Run.step_seconds, 1)
+    near(role.weapon_modifiers.projectile_speed, 1)
+    Run.update(role, Run.step_seconds)
+    near(role.weapon_modifiers.projectile_speed, 1)
+end
+
+do
+    local role = assert(Run.for_character("dawn_drifter", 15, stage, nil, { dawn_drifter = true }))
+    Run.update(role, Run.step_seconds)
+    near(role.weapon_modifiers.area, 1)
+    role.player.health = role.player.max_health * 0.45
+    Run.update(role, Run.step_seconds)
+    near(role.weapon_modifiers.area, 1.32)
+    role.player.health = role.player.max_health * 0.46
+    Run.update(role, Run.step_seconds)
+    near(role.weapon_modifiers.area, 1)
+end
+
+do
+    local role = assert(Run.for_character("comet_keeper", 16, stage, nil, { comet_keeper = true }))
+    grantLevels(role, 4)
+    while role.progress.choices do
+        assert(Run.choose(role, role.progress.choices.token, "passive:dawn_book"))
+    end
+    Run.update(role, Run.step_seconds)
+    near(role.weapon_modifiers.damage, role.base_weapon_modifiers.damage + 0.30)
+    grantLevels(role, 5)
+    assert(Run.choose(role, role.progress.choices.token, "weapon:wind_blade"))
+    Run.update(role, Run.step_seconds)
+    near(role.weapon_modifiers.damage, role.base_weapon_modifiers.damage)
+end
+
+do
+    local flags = { far_shore_traveller = true }
+    local role = assert(Run.for_character("far_shore_traveller", 1, stage, nil, flags))
+    local replay, alternate = Run.restart(role), Run.restart(role, 20000)
+    assert(#role.weapon_systems == 2 and #alternate.weapon_systems == 2)
+    assert(role.weapons.id == "echo_bell" and alternate.weapons.id == "echo_bell")
+    assert(replay.weapon_systems[2].id == role.weapon_systems[2].id)
+    assert(alternate.weapon_systems[2].id ~= role.weapon_systems[2].id)
 end
 
 print("Lua character selection, normal starter attacks, growth caps, and seeded hidden loadouts passed")
