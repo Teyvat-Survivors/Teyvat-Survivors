@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@FurinyaDev'
 created_date: '2026-11-21 03:03'
-updated_date: '2026-11-21 04:20'
+updated_date: '2026-11-21 04:49'
 labels: []
 milestone: m-1
 dependencies:
@@ -29,4 +29,6 @@ ordinal: 5
 
 <!-- SECTION:NOTES:BEGIN -->
 统一登记各类客户端控件。编辑器模板实例化或校验失败时停止更新并回收已生成控件。源码、打包、缺少 Label 和失效文本模板的离线测试通过。保留 PC 与移动端原生验收阻塞。
+
+新增 GitHub 公共 Windows Runner 验证，覆盖 Lua 5.3.6 回归、可复现打包及客户端接口替身。通过后发布可供编辑器映射使用的 `.lua` 文件。官方说明的存档导出通过编辑器操作，原生 `.gil` 导出和 PC、移动端验收继续跟踪。
 <!-- SECTION:NOTES:END -->

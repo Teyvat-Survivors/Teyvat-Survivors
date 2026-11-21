@@ -26,6 +26,8 @@
 
 ## 本地证据和实机验收
 
+GitHub Actions 的 **Windows Lua** 在 Windows Server 2022 上运行 Lua 5.3.6 测试并验证客户端脚本打包。可从成功运行的 **Artifacts** 下载 `teyvat-survivors-client-lua`，解压后将 `.lua` 文件用于上面的脚本映射。工作流也可手动触发。 [Windows Lua 运行记录](https://github.com/Teyvat-Survivors/Teyvat-Survivors/actions/workflows/windows-lua.yml)
+
 从工程根目录运行 `lua tests/gil_client.lua`。构建后运行 `lua tests/gil_client.lua <生成的Lua文件> bundle`，验证同一套原生接口替身可启动打包脚本。测试替身驱动真实玩法核心，覆盖菜单、战斗、经验升级、宝箱、终局、重开及控件上限。实际编辑器导出、PC 与移动端交互、原生音画、保存和关卡结果信号另行验收。本脚本的结算页只呈现本局核心结果。
 
 渲染对画布外图元做裁剪，复用已创建的显示控件，并跳过没有变化的坐标、尺寸和颜色写入。世界图片池最多 705 个，其中最多 300 个敌人。超出任一池容量时 HUD 显示提示，核心状态仍可运行。官方范围表列出 1,000 单界面组控件和 10,000 一屏控件。原生主机能承受的数量和单个 Lua 源文件大小限制尚无实测证据。 [官方编辑项范围限制](https://act.mihoyo.com/ys/ugc/tutorial/detail/mh74ae9fsg8i)
