@@ -1,4 +1,5 @@
 local Enemies = require("game.enemies")
+local Weapons = require("game.weapons")
 local waves = require("data.waves")
 
 local Run = {}
@@ -51,6 +52,7 @@ function Run.new(seed)
     run.enemies = Enemies.new(waves, function()
         return Run.random(run)
     end)
+    run.weapons = Weapons.new()
     return run
 end
 
@@ -91,6 +93,8 @@ function Run.update(run, seconds, move_x, move_y)
         player.x = constrain(player.x + x * player.speed * STEP)
         player.y = constrain(player.y + y * player.speed * STEP)
         Enemies.step(run.enemies, run, STEP)
+        Weapons.step(run.weapons, run, STEP)
+        Enemies.compact(run.enemies)
     end
     return steps
 end
