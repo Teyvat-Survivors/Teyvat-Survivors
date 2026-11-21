@@ -49,4 +49,6 @@ do
     assert(Run.update(run, Run.step_seconds / 2, 1, 0) == 1 and run.tick == 2)
 end
 
+dofile("tests/round.lua")
+
 dofile("tests/platform_probe.lua")

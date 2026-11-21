@@ -37,7 +37,8 @@ local function recycle(system, player)
     local active = system.active
     local retained = 0
     for _, enemy in ipairs(active) do
-        if enemy.health > 0 and (not player or distanceSquared(enemy, player) <= system.despawnDistanceSquared) then
+        if enemy.health > 0 and
+            (not player or enemy.isTerminal or distanceSquared(enemy, player) <= system.despawnDistanceSquared) then
             retained = retained + 1
             active[retained] = enemy
         else
@@ -49,30 +50,44 @@ local function recycle(system, player)
     end
 end
 
+local function spawn(system, player, kindId)
+    local kind = system.config.types[kindId]
+    local id = system.totalSpawned + 1
+    local turn = system.randomUnit and system.randomUnit() or (id * 0.61803398875) % 1
+    local angle = fullTurn * turn
+    local distance = system.config.spawnDistance
+    local enemy = table.remove(system.free) or {}
+    enemy.id = id
+    enemy.kind = kindId
+    enemy.isTerminal = false
+    enemy.x = player.x + math.cos(angle) * distance
+    enemy.y = player.y + math.sin(angle) * distance
+    enemy.radius = kind.radius
+    enemy.speed = kind.speed
+    enemy.health = kind.health
+    enemy.contactDamage = kind.contactDamage
+    system.active[#system.active + 1] = enemy
+    system.totalSpawned = id
+    return enemy
+end
+
 local function spawnWave(system, player, wave)
-    local kind = system.config.types[wave.kind]
     local count = math.min(wave.count, system.config.capacity - #system.active)
     system.totalSkipped = system.totalSkipped + wave.count - count
     for _ = 1, count do
-        local id = system.totalSpawned + 1
-        local turn = (id * 0.61803398875) % 1
-        if system.randomUnit then
-            turn = system.randomUnit()
-        end
-        local angle = fullTurn * turn
-        local distance = system.config.spawnDistance
-        local enemy = table.remove(system.free) or {}
-        enemy.id = id
-        enemy.kind = wave.kind
-        enemy.x = player.x + math.cos(angle) * distance
-        enemy.y = player.y + math.sin(angle) * distance
-        enemy.radius = kind.radius
-        enemy.speed = kind.speed
-        enemy.health = kind.health
-        enemy.contactDamage = kind.contactDamage
-        system.active[#system.active + 1] = enemy
-        system.totalSpawned = id
+        spawn(system, player, wave.kind)
     end
+end
+
+function Enemies.begin_finale(system, player, kindId)
+    for index = #system.active, 1, -1 do
+        system.free[#system.free + 1] = system.active[index]
+        system.active[index] = nil
+    end
+    system.nextWave = #system.config.spawns + 1
+    local terminal = spawn(system, player, kindId)
+    terminal.isTerminal = true
+    return terminal
 end
 
 function Enemies.step(system, run, dtSeconds)
