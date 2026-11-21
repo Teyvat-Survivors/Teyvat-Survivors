@@ -131,4 +131,6 @@ do
     assert(reloaded.coins == 188 and not Profile.settle(reloaded, id, run.result))
 end
 
+dofile("tests/stages.lua")
+
 dofile("tests/platform_probe.lua")
