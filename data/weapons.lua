@@ -1,4 +1,36 @@
 return {
+    stone_ward = {
+        label = "砾石护壁",
+        behavior = "ward",
+        levels = {
+            { cooldown_ticks = 160, duration_ticks = 112, charges = 1 },
+            { cooldown_ticks = 148, duration_ticks = 132, charges = 2 },
+        },
+    },
+    stillwater_seal = {
+        label = "静水印",
+        behavior = "stasis",
+        levels = {
+            { cooldown_ticks = 120, radius = 6, duration_ticks = 16, speed_factor = 0.25, target_cap = 4 },
+            { cooldown_ticks = 104, radius = 7.5, duration_ticks = 24, speed_factor = 0, target_cap = 7 },
+        },
+    },
+    dawn_break = {
+        label = "破晓环",
+        behavior = "purge",
+        levels = {
+            { cooldown_ticks = 220, radius = 5.5, elite_damage = 15 },
+            { cooldown_ticks = 192, radius = 7.5, elite_damage = 23 },
+        },
+    },
+    echo_bell = {
+        label = "回响铃",
+        behavior = "echo_magnet",
+        levels = {
+            { cooldown_ticks = 120, radius = 10, pickup_cap = 3 },
+            { cooldown_ticks = 96, radius = 15, pickup_cap = 6 },
+        },
+    },
     wind_blade = {
         label = "风刃", weight = 18,
         label = "风刃",

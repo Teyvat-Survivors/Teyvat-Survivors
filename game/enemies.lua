@@ -86,6 +86,8 @@ local function spawn(system, player, kindId)
     enemy.kind = kindId
     enemy.isTerminal = false
     enemy.isElite = kind.elite == true
+    enemy.controlImmune = kind.controlImmune == true
+    enemy.slowFactor, enemy.slowUntilTick, enemy.slowReadyTick = nil, nil, nil
     enemy.x = player.x + math.cos(angle) * distance
     enemy.y = player.y + math.sin(angle) * distance
     enemy.radius = kind.radius
@@ -203,10 +205,21 @@ function Enemies.step(system, run, dtSeconds)
     end
 
     for _, enemy in ipairs(system.active) do
-        if stepEnemy(enemy, player, run.tick, dtSeconds, run.tick >= system.nextContactTick) then
+        local step = dtSeconds
+        if enemy.slowUntilTick and run.tick < enemy.slowUntilTick then
+            step = step * enemy.slowFactor
+        end
+        if stepEnemy(enemy, player, run.tick, step, run.tick >= system.nextContactTick) then
             local damage = math.max(0, enemy.contactDamage - (player.armor or 0))
-            player.health = math.max(0, player.health - damage)
-            system.nextContactTick = run.tick + system.config.contactIntervalTicks
+            if damage > 0 then
+                local ward = player.ward
+                if ward and ward.charges > 0 and run.tick < ward.expires_tick then
+                    ward.charges = ward.charges - 1
+                else
+                    player.health = math.max(0, player.health - damage)
+                end
+                system.nextContactTick = run.tick + system.config.contactIntervalTicks
+            end
         end
     end
 end
