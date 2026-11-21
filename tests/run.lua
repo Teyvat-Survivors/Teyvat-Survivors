@@ -191,4 +191,6 @@ dofile("tests/modes.lua")
 
 dofile("tests/journal.lua")
 
+dofile("tests/rewards.lua")
+
 dofile("tests/platform_probe.lua")

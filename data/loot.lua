@@ -3,6 +3,7 @@ return {
     coin_value = 3,
     healing_value = 12,
     treasure_coin_value = 18,
+    armory_choice_count = 3,
     treasure_sources = { sentinel = true },
     drop_weights = {
         { kind = "none", weight = 50 },

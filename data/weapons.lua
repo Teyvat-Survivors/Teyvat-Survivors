@@ -1,4 +1,13 @@
 return {
+    lantern_fanfare = {
+        label = "灯华齐鸣",
+        weight = 0,
+        armory_unlock = true,
+        behavior = "pulse",
+        levels = {
+            { damage = 27, cooldown_ticks = 118, radius = 7.8, knockback = 1.4 },
+        },
+    },
     gale_script = {
         label = "长风篇",
         weight = 0,

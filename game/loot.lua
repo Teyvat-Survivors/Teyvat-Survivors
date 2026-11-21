@@ -1,5 +1,6 @@
 local Data = require("data.loot")
 local Weapons = require("game.weapons")
+local Build = require("game.build")
 local Evolutions = require("game.evolutions")
 
 local Loot = {}
@@ -63,11 +64,17 @@ local function offerTreasure(system, run, chest)
     local options = {
         { id = "coins", label = "领取风砂币", amount = Data.treasure_coin_value },
     }
-    if canUpgrade(run) then
-        options[#options + 1] = { id = "upgrade", label = "强化当前武器" }
-    end
-    for _, recipe in ipairs(Evolutions.options(run, chest)) do
-        options[#options + 1] = recipe
+    if chest.chest_type == "armory" then
+        for _, weapon in ipairs(Build.armory_options(run.build, Data.armory_choice_count)) do
+            options[#options + 1] = { id = "armory:" .. weapon.id, label = weapon.label, armory_weapon = weapon.id }
+        end
+    else
+        if canUpgrade(run) then
+            options[#options + 1] = { id = "upgrade", label = "强化当前武器" }
+        end
+        for _, recipe in ipairs(Evolutions.options(run, chest)) do
+            options[#options + 1] = recipe
+        end
     end
     system.choiceToken = system.choiceToken + 1
     system.choices = { token = system.choiceToken, options = options, chest = chest }
@@ -128,6 +135,13 @@ function Loot.choose(system, run, token, optionId)
         if option.id == optionId then
             if optionId == "coins" then
                 system.coins = system.coins + option.amount
+            elseif option.armory_weapon then
+                local weapon = Weapons.new(option.armory_weapon, run.build.randomUnit)
+                if not Build.claim_armory(run.build, weapon.id) then
+                    return false
+                end
+                run.weapon_systems[#run.weapon_systems + 1] = weapon
+                if not run.weapons then run.weapons = weapon end
             elseif option.recipe then
                 if not Evolutions.apply(run, choices.chest, option.recipe) then
                     return false

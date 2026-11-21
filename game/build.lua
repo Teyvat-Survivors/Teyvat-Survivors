@@ -9,13 +9,14 @@ local function addCatalog(target, definitions, kind)
             kind = kind,
             label = definition.label or id,
             weight = definition.weight or 1,
+            armory_unlock = definition.armory_unlock,
             max_level = definition.max_level or #definition.levels,
             per_level = definition.per_level,
         }
     end
 end
 
-function Build.new(randomUnit, weaponCatalog, startingWeapon, overrides)
+function Build.new(randomUnit, weaponCatalog, startingWeapon, overrides, weaponUnlocks)
     assert(type(randomUnit) == "function", "build requires the run's random source")
     local rules = {}
     for name, value in pairs(Passives.rules) do
@@ -44,16 +45,23 @@ function Build.new(randomUnit, weaponCatalog, startingWeapon, overrides)
         assert(item.max_level >= 1 and item.max_level % 1 == 0, "invalid item level cap")
     end
 
+    assert(weaponUnlocks == nil or type(weaponUnlocks) == "table", "invalid weapon unlocks")
+    local unlocks = {}
+    for id, unlocked in pairs(weaponUnlocks or {}) do
+        if unlocked == true and weaponCatalog[id] then unlocks[id] = true end
+    end
     local weapons = {}
     local starters = type(startingWeapon) == "table" and startingWeapon or { startingWeapon }
     assert(#starters <= rules.weapon_slots, "starting weapons exceed available slots")
     for _, id in ipairs(starters) do
-        assert(weaponCatalog[id] and not weapons[id], "invalid or repeated starting weapon")
+        local definition = weaponCatalog[id]
+        assert(definition and not weapons[id], "invalid or repeated starting weapon")
+        assert(not definition.armory_unlock or unlocks[id], "starting weapon is locked")
         weapons[id] = 1
     end
 
     return {
-        weapons = weapons,
+        weapons = weapons, weapon_unlocks = unlocks,
         passives = {},
         catalog = catalog,
         rules = rules,
@@ -82,7 +90,7 @@ local function candidates(build)
             owned, full = build.weapons, weaponsFull
         end
         local level = owned[item.id]
-        if item.weight > 0 and not build.banished[item.key]
+        if item.weight > 0 and not item.armory_unlock and not build.banished[item.key]
             and ((level and level < item.max_level) or (not level and not full)) then
             pool[#pool + 1] = {
                 key = item.key,
@@ -113,6 +121,49 @@ local function draw(build, pool)
         end
     end
     return table.remove(pool)
+end
+
+local function armoryEligible(build, item)
+    if item.kind ~= "weapon" or build.weapons[item.id] or build.banished[item.key] then
+        return false
+    end
+    if item.armory_unlock then
+        return build.weapon_unlocks[item.id] == true
+    end
+    return item.weight > 0
+end
+
+function Build.armory_options(build, limit)
+    local options, base = {}, {}
+    if size(build.weapons) >= build.rules.weapon_slots then
+        return options
+    end
+    for _, item in ipairs(build.catalog) do
+        if armoryEligible(build, item) then
+            if item.armory_unlock and #options < limit then
+                options[#options + 1] = item
+            elseif not item.armory_unlock then
+                base[#base + 1] = item
+            end
+        end
+    end
+    while #options < limit and #base > 0 do
+        options[#options + 1] = draw(build, base)
+    end
+    return options
+end
+
+function Build.claim_armory(build, id)
+    if size(build.weapons) >= build.rules.weapon_slots then
+        return false
+    end
+    for _, item in ipairs(build.catalog) do
+        if item.id == id and armoryEligible(build, item) then
+            build.weapons[id] = 1
+            return true
+        end
+    end
+    return false
 end
 
 local function publish(build, pool, first)

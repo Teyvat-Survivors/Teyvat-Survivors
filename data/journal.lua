@@ -13,6 +13,7 @@ return {
                 stages = { moon_reeds = true },
                 characters = { paired_wayfinder = true },
                 perks = { tidal_dial = true },
+                weapons = { lantern_fanfare = true },
             },
         },
         {

@@ -31,10 +31,12 @@
 | Carréllo | `echo_shard` | 场地边界反弹 |
 | Celestial Dusting | `echo_shard` | 有限反弹伤害 |
 | La Robba | `stone_lob`、`echo_shard` | 抛投落地与反弹分属两项配置 |
-| Greatest Jubilee | TS-25 | 终局庆典和解锁条件待接入 |
+| Greatest Jubilee | `lantern_fanfare` | 首次通过风径试炼终局后解锁的周期庆典脉冲，可从军械箱取得 |
 | Bracelet | `needle_ring` | 随机瞄准后产生贯穿齐射 |
-| Candybox | TS-18、TS-25 | 特殊奖励选择及解锁待接入 |
+| Candybox | 军械守卫宝箱 | 风径试炼稀有掉落，提供有空槽、未持有且未放逐的基础武器候选 |
 | Victory Sword | `last_stand` | 生命处于阈值内时增强近身斩击 |
 | Flames of Misspell | `ember_breath` | 锁定施法方向的重复扇形脉冲 |
 
 `lua tests/weapon_catalog.lua` 逐级验证本轮新增配置，包括方向、距离、落点、同帧折转、命中次数、触发时序及真实 Run 升级后的两把武器共存。原型与前几批武器继续由 `tests/run.lua`、`tests/weapons.lua`、`tests/combat.lua`、`tests/projectile_families.lua`、`tests/fields.lua`、`tests/support.lua` 回归。角色、配方、终局解锁与具体千星资源由各自任务验证。
+
+风径试炼的军械守卫使用独立掉落。军械箱最多显示三种新武器和金币选项，确认时会重新检查空槽、持有与放逐。继承存档的新局可把 `Profile.unlocks(profile).weapons` 填入 `Run.new` 或 `Run.for_character` 的 `options.weapon_unlocks`。已解锁的灯华齐鸣优先出现在有空槽的军械箱中。Lua 的普通加权升级不会抽出该武器。 `tests/rewards.lua` 验证出生、击杀、选箱、解锁和重开。
