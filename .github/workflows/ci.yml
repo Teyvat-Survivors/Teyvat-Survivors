@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [develop, main]
 
 permissions:
   contents: read
@@ -13,6 +13,15 @@ jobs:
     name: Lua and Backlog
     runs-on: ubuntu-24.04
     steps:
+      - name: Validate production PR source
+        if: >-
+          github.event_name == 'pull_request' && github.base_ref == 'main' &&
+          (github.event.pull_request.head.repo.full_name != github.repository ||
+          !(startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/')))
+        run: |
+          echo '::error::Open a production PR from a release/* or hotfix/* branch in this repository.'
+          exit 1
+
       - name: Check out candidate
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
         with:
