@@ -1,10 +1,11 @@
 ---
 id: TS-40
 title: 实现 Lua 解锁、收藏与成就账本
-status: To Do
+status: Done
 assignee:
   - '@FurinyaDev'
 created_date: '2026-11-21 04:02'
+updated_date: '2026-11-21 04:13'
 labels: []
 milestone: m-3
 dependencies:
@@ -23,6 +24,12 @@ ordinal: 40
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 测试结果触发解锁、成就和收藏，以及重复提交。
-- [ ] #2 保存重载后重查开放资格，验证旧存档默认。
+- [x] #1 测试结果触发解锁、成就和收藏，以及重复提交。
+- [x] #2 保存重载后重查开放资格，验证旧存档默认。
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+扩展序列化进度，加入原创成就、阶段解锁、隐藏角色及秘法旗标。真实单局结果补充收藏清单。验证旧存档加载、重复结算、拒绝无效记录和保存重载。
+<!-- SECTION:FINAL_SUMMARY:END -->

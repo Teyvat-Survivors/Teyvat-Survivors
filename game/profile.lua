@@ -1,4 +1,5 @@
 local PowerUps = require("data.powerups")
+local Journal = require("game.journal")
 
 local Profile = {}
 
@@ -23,11 +24,12 @@ local function copy_map(source)
     return result
 end
 
-local function snapshot(saved, ranks)
+local function snapshot(saved, ranks, journal)
     return {
         version = VERSION,
         coins = saved.coins,
         ranks = ranks,
+        journal = journal,
         invested = saved.invested,
         last_run_id = saved.last_run_id,
         active_run_id = saved.active_run_id,
@@ -41,6 +43,7 @@ local function empty_profile()
         version = VERSION,
         coins = 0,
         ranks = {},
+        journal = Journal.load(nil, 0),
         invested = 0,
         last_run_id = 0,
         completed_runs = 0,
@@ -100,11 +103,23 @@ function Profile.load(saved)
     assert((levels == 0 and saved.invested == 0) or (levels > 0 and saved.invested >= levels),
         "saved investment contradicts power-up ranks")
 
-    return snapshot(saved, ranks)
+    return snapshot(saved, ranks, Journal.load(saved.journal, saved.completed_runs))
 end
 
 function Profile.export(profile)
-    return snapshot(profile, copy_map(profile.ranks))
+    return snapshot(profile, copy_map(profile.ranks), Journal.export(profile.journal))
+end
+
+function Profile.unlocks(profile)
+    return Journal.unlocks(profile.journal)
+end
+
+function Profile.achievements(profile)
+    return Journal.achievements(profile.journal)
+end
+
+function Profile.collection(profile)
+    return Journal.collection(profile.journal)
 end
 
 function Profile.cost(profile, id)
@@ -187,7 +202,8 @@ function Profile.settle(profile, id, result)
     if not active then
         return false, reason
     end
-    if type(result) ~= "table" or not outcomes[result.outcome] or not bounded_integer(result.coins, MAX_VALUE) then
+    if type(result) ~= "table" or not outcomes[result.outcome]
+        or not bounded_integer(result.coins, MAX_VALUE) or not Journal.valid_result(result) then
         return false, "invalid_result"
     end
     if result.coins > MAX_VALUE - profile.coins - profile.invested then
@@ -196,9 +212,11 @@ function Profile.settle(profile, id, result)
 
     profile.coins = profile.coins + result.coins
     profile.completed_runs = profile.completed_runs + 1
-    if outcomes[result.outcome] == "win" then
+    local won = outcomes[result.outcome] == "win"
+    if won then
         profile.wins = profile.wins + 1
     end
+    Journal.credit(profile.journal, result, profile.completed_runs, won)
     profile.active_run_id = nil
     return true
 end
