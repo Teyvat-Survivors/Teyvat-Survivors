@@ -89,6 +89,7 @@ local ridge_spawns = patternedSpawns(ridge_duration, {
 return {
     windward = {
         id = "windward",
+        evolution = { earliest_tick = 3600, chest_types = { elite = true } },
         duration_ticks = duration_seconds * ticks_per_second,
         terminal_kind = "tempest",
         terminal_timeout_ticks = 24 * ticks_per_second,

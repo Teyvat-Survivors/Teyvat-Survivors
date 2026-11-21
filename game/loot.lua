@@ -1,5 +1,6 @@
 local Data = require("data.loot")
 local Weapons = require("game.weapons")
+local Evolutions = require("game.evolutions")
 
 local Loot = {}
 local totalWeight = 0
@@ -34,18 +35,22 @@ local function roll(system)
     return Data.drop_weights[#Data.drop_weights].kind
 end
 
-function Loot.defeat(system, enemy)
+function Loot.defeat(system, enemy, tick)
     if enemy.health ~= 0 or system.rewarded[enemy] == enemy.id then
         return nil
     end
     system.rewarded[enemy] = enemy.id
 
-    local kind = (enemy.isElite or Data.treasure_sources[enemy.kind]) and "treasure" or roll(system)
+    local chestType = enemy.treasureKind or ((enemy.isElite or Data.treasure_sources[enemy.kind]) and "elite")
+    local kind = chestType and "treasure" or roll(system)
     if kind == "none" then
         return nil
     end
 
     local item = { kind = kind, x = enemy.x, y = enemy.y, enemyId = enemy.id }
+    if chestType then
+        item.chest_type, item.dropped_tick = chestType, tick
+    end
     system.pickups[#system.pickups + 1] = item
     return item
 end
@@ -54,15 +59,18 @@ local function canUpgrade(run)
     return not run.loot_upgrade_slots_full and run.weapons.level < Weapons.max_level(run.weapons)
 end
 
-local function offerTreasure(system, run)
+local function offerTreasure(system, run, chest)
     local options = {
         { id = "coins", label = "领取风砂币", amount = Data.treasure_coin_value },
     }
     if canUpgrade(run) then
         options[#options + 1] = { id = "upgrade", label = "强化当前武器" }
     end
+    for _, recipe in ipairs(Evolutions.options(run, chest)) do
+        options[#options + 1] = recipe
+    end
     system.choiceToken = system.choiceToken + 1
-    system.choices = { token = system.choiceToken, options = options }
+    system.choices = { token = system.choiceToken, options = options, chest = chest }
 end
 
 local function collect(system, run, item)
@@ -77,7 +85,7 @@ local function collect(system, run, item)
             gem.attracted = true
         end
     else
-        offerTreasure(system, run)
+        offerTreasure(system, run, item)
     end
 end
 
@@ -119,6 +127,10 @@ function Loot.choose(system, run, token, optionId)
         if option.id == optionId then
             if optionId == "coins" then
                 system.coins = system.coins + option.amount
+            elseif option.recipe then
+                if not Evolutions.apply(run, choices.chest, option.recipe) then
+                    return false
+                end
             elseif not canUpgrade(run) or not Weapons.upgrade(run.weapons) then
                 return false
             end

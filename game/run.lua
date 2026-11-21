@@ -152,6 +152,8 @@ function Run.new(seed, stage, weapon_id, profile_stats)
     run.enemies = Enemies.new(stage.waves, randomUnit)
     run.weapons = Weapons.new(weapon_id, randomUnit)
     run.weapon_systems = { run.weapons }
+    run.starting_weapon_id = run.weapons.id
+    run.evolutions = {}
     run.build = Build.new(randomUnit, WeaponData, run.weapons.id, stage.build_rules)
     run.weapon_modifiers = Build.stats(run.build)
     run.weapon_modifiers.damage = base.damage_multiplier
@@ -167,7 +169,7 @@ function Run.new(seed, stage, weapon_id, profile_stats)
             finish(run, "finale_defeated")
         else
             Progress.drop(run.progress, enemy)
-            Loot.defeat(run.loot, enemy)
+            Loot.defeat(run.loot, enemy, run.tick)
         end
     end
     return run
@@ -175,7 +177,7 @@ end
 
 function Run.restart(run, seed)
     if seed == nil then seed = run.seed end
-    return Run.new(seed, run.stage, run.weapons.id, run.base_stats)
+    return Run.new(seed, run.stage, run.starting_weapon_id, run.base_stats)
 end
 
 local function applyWeaponRank(run, id, rank)
