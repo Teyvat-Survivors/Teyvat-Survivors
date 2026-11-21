@@ -139,4 +139,50 @@ dofile("tests/evolutions.lua")
 
 dofile("tests/characters.lua")
 
+dofile("tests/perks.lua")
+
+do
+    local hazard = { health = 99999, radius = 1, speed = 0, contactDamage = 1000 }
+    local stage = {
+        id = "revive", duration_ticks = 120, terminal_kind = "hazard", terminal_timeout_ticks = 30,
+        waves = {
+            capacity = 1, spawnDistance = 0, despawnDistance = 32, contactIntervalTicks = 3,
+            types = { hazard = hazard }, spawns = { { tick = 2, kind = "hazard", count = 1 } },
+        },
+    }
+    local run = Run.new(31, stage)
+    assert(Run.enable_perks(run, { unlocked = { spring_mark = true } }))
+    local choice = assert(run.perks.choice)
+    assert(Run.update(run, 0.25) == 0 and run.tick == 0)
+    assert(Run.choose_perk(run, choice.token, choice.options[1].id))
+    assert(not Run.choose_perk(run, choice.token, choice.options[1].id))
+    Run.update(run, Run.step_seconds * 2)
+    assert(run.player.health == 38 and run.tick == 2 and not run.result)
+    assert(Run.take_events(run)[1].kind == "revived")
+    Run.update(run, 0.25)
+    assert(run.result.outcome == "defeated" and run.tick == 5)
+    assert(Run.restart(run).perks.choice)
+end
+
+do
+    local marker = { health = 1, radius = 0.5, speed = 0, contactDamage = 0, treasure_kind = "perk" }
+    local stage = {
+        id = "perk-chest", duration_ticks = 120, terminal_kind = "marker", terminal_timeout_ticks = 30,
+        waves = {
+            capacity = 1, spawnDistance = 0, despawnDistance = 32, contactIntervalTicks = 3,
+            types = { marker = marker }, spawns = { { tick = 1, kind = "marker", count = 1 } },
+        },
+    }
+    local run = Run.new(31, stage, "frost_pulse")
+    assert(Run.enable_perks(run, { unlocked = { cinder_refrain = true } }))
+    assert(Run.skip_perk(run, run.perks.choice.token))
+    Run.update(run, Run.step_seconds * 1.75)
+    local chest = assert(run.loot.choices)
+    assert(Run.choose_treasure(run, chest.token, "coins") and run.perks.choice.source == chest.chest.enemyId)
+    assert(Run.update(run, 1) == 0 and run.tick == 1)
+    assert(Run.choose_perk(run, run.perks.choice.token, "cinder_refrain"))
+    assert(Run.update(run, Run.step_seconds / 2) == 0)
+    assert(Run.update(run, Run.step_seconds / 2) == 1)
+end
+
 dofile("tests/platform_probe.lua")
