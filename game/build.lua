@@ -45,9 +45,11 @@ function Build.new(randomUnit, weaponCatalog, startingWeapon, overrides)
     end
 
     local weapons = {}
-    if startingWeapon then
-        assert(weaponCatalog[startingWeapon] and rules.weapon_slots > 0, "starting weapon needs a valid slot")
-        weapons[startingWeapon] = 1
+    local starters = type(startingWeapon) == "table" and startingWeapon or { startingWeapon }
+    assert(#starters <= rules.weapon_slots, "starting weapons exceed available slots")
+    for _, id in ipairs(starters) do
+        assert(weaponCatalog[id] and not weapons[id], "invalid or repeated starting weapon")
+        weapons[id] = 1
     end
 
     return {

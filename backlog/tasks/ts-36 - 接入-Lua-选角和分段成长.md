@@ -1,10 +1,11 @@
 ---
 id: TS-36
 title: 接入 Lua 选角和分段成长
-status: To Do
+status: Done
 assignee:
   - '@FurinyaDev'
 created_date: '2026-11-21 04:02'
+updated_date: '2026-11-21 04:06'
 labels: []
 milestone: m-3
 dependencies:
@@ -21,6 +22,12 @@ ordinal: 36
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 初始与分段成长、双武器、随机起手和隐藏资格通过。
-- [ ] #2 实际战斗和重开继承角色。千星画面、剩余角色和长期解锁继续由 TS-19 等任务验收。
+- [x] #1 初始与分段成长、双武器、随机起手和隐藏资格通过。
+- [x] #2 实际战斗和重开继承角色。千星画面、剩余角色和长期解锁继续由 TS-19 等任务验收。
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+12 名原创角色可从实际 Run 入口启动。验证起手、双武器、成长、隐藏资格、随机起手、结算及重开。
+<!-- SECTION:FINAL_SUMMARY:END -->
