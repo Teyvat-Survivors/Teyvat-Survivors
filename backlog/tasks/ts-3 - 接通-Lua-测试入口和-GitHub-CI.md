@@ -1,10 +1,11 @@
 ---
 id: TS-3
 title: 接通 Lua 测试入口和 GitHub CI
-status: To Do
+status: In Progress
 assignee:
   - '@FurinyaDev'
 created_date: '2026-11-21 03:03'
+updated_date: '2026-11-21 03:26'
 labels: []
 milestone: m-0
 dependencies:

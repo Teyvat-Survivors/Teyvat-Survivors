@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Lua and Backlog
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          persist-credentials: false
+
+      - name: Build Lua 5.3.6
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            --output lua-5.3.6.tar.gz https://www.lua.org/ftp/lua-5.3.6.tar.gz
+          echo 'fc5fd69bb8736323f026672b1b7235da613d7177e72558893a0bdcd320466d60  lua-5.3.6.tar.gz' | sha256sum --check
+          tar -xzf lua-5.3.6.tar.gz
+          make -C lua-5.3.6 -j2 posix
+          printf '%s\n' "$RUNNER_TEMP/lua-5.3.6/src" >> "$GITHUB_PATH"
+
+      - name: Run Lua tests
+        run: lua tests/run.lua
+
+      - name: Read Backlog task queue
+        run: npx --yes backlog.md@1.53.0 task list --json > /dev/null

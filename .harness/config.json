@@ -28,6 +28,10 @@
   "verification": {
     "commands": [
       [
+        "lua",
+        "tests/run.lua"
+      ],
+      [
         "npx",
         "--yes",
         "backlog.md@1.53.0",
@@ -38,12 +42,13 @@
     ],
     "controller": null,
     "environment": {},
-    "expected_app_id": null,
+    "expected_app_id": 15368,
     "material_inputs": [
       "backlog/config.yml"
     ],
-    "required_check": "openharness / candidate",
-    "sandbox_image": null
+    "required_check": "Lua and Backlog",
+    "sandbox_image": null,
+    "workflow": ".github/workflows/ci.yml"
   },
   "work": {
     "actors": {

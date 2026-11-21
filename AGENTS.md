@@ -13,4 +13,4 @@ Backlog.md 是项目唯一的工作队列。任务、验收条件和状态都在
 
 - Backlog.md 使用 1.53.0。用同一 CLI 或其界面编辑任务。保持顶层标量和字符串列表的格式。长链接等 Markdown 引用放入任务正文，OpenHarness 的 Backlog 读取器只支持约定的 YAML 子集。
 - OpenHarness 使用支持 cooperative 的固定提交 `aebb0c2255a5df275491009285c1a23d03f90771`（内部版本 0.3.0）。可在仓库外的虚拟环境安装 `python -m pip install 'git+https://github.com/FurinyaDev/OpenHarness.git@aebb0c2255a5df275491009285c1a23d03f90771'`。要求 Python 3.11+、Git 2.38+、已认证的 GitHub CLI。详见 [OpenHarness 入口](.harness/AGENT.md)。
-- 提交后在干净工作区运行 `openharness --repo . verify --head HEAD --base origin/main`。当前验收运行 Backlog CLI。TS-3 接入实际 Lua 验收和 GitHub CI 后再核对检查来源及分支保护。用 `doctor` 观察真实状态，千星测试只记录实际设备或编辑器的结果。
+- 提交后在干净工作区运行 `openharness --repo . verify --head HEAD --base origin/main`。候选验收运行 Lua 5.3 测试和 Backlog CLI。GitHub Actions 检查名为 `Lua and Backlog`。用 `doctor` 观察真实状态，千星测试只记录实际设备或编辑器的结果。
