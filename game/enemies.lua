@@ -113,7 +113,8 @@ function Enemies.step(system, run, dtSeconds)
         end
 
         if run.tick >= system.nextContactTick and distance - travel <= player.radius + enemy.radius then
-            player.health = math.max(0, player.health - enemy.contactDamage)
+            local damage = math.max(0, enemy.contactDamage - (player.armor or 0))
+            player.health = math.max(0, player.health - damage)
             system.nextContactTick = run.tick + system.config.contactIntervalTicks
         end
     end

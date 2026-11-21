@@ -1,6 +1,8 @@
 local Enemies = require("game.enemies")
 local Weapons = require("game.weapons")
 local Progress = require("game.progress")
+local Build = require("game.build")
+local WeaponData = require("data.weapons")
 local stages = require("data.stages")
 
 local Run = {}
@@ -9,6 +11,7 @@ local STEP = 1 / 60
 local MAX_FRAME_TIME = 0.25
 local WORLD_EDGE = 96
 local SEED_MODULUS = 2147483647
+local PLAYER_SPEED, PLAYER_MAX_HEALTH = 6, 100
 
 Run.step_seconds = STEP
 
@@ -71,17 +74,20 @@ function Run.new(seed, stage, weapon_id)
         accumulator = 0,
         paused = false,
         events = {},
-        player = { x = 0, y = 0, speed = 6, radius = 0.42, health = 100, max_health = 100 },
+        player = {
+            x = 0, y = 0, radius = 0.42, speed = PLAYER_SPEED, armor = 0,
+            health = PLAYER_MAX_HEALTH, max_health = PLAYER_MAX_HEALTH,
+        },
     }
-    run.enemies = Enemies.new(stage.waves, function()
+    local function randomUnit()
         return Run.random(run)
-    end)
-    run.weapons = Weapons.new(weapon_id, function()
-        return Run.random(run)
-    end)
-    run.progress = Progress.new(function()
-        return Run.random(run)
-    end)
+    end
+    run.enemies = Enemies.new(stage.waves, randomUnit)
+    run.weapons = Weapons.new(weapon_id, randomUnit)
+    run.weapon_systems = { run.weapons }
+    run.build = Build.new(randomUnit, WeaponData, run.weapons.id, stage.build_rules)
+    run.weapon_modifiers = Build.stats(run.build)
+    run.progress = Progress.new()
     run.on_defeat = function(enemy)
         run.kills = run.kills + 1
         if enemy.id == run.terminal_id then
@@ -98,11 +104,78 @@ function Run.restart(run, seed)
     return Run.new(seed, run.stage, run.weapons.id)
 end
 
+local function applyWeaponRank(run, id, rank)
+    for _, weapon in ipairs(run.weapon_systems) do
+        if weapon.id == id then
+            weapon.level = rank
+            return
+        end
+    end
+    local weapon = Weapons.new(id, function() return Run.random(run) end)
+    run.weapon_systems[#run.weapon_systems + 1] = weapon
+end
+
+local function applyPassives(run)
+    local stats = Build.stats(run.build)
+    local player = run.player
+    local maxHealth = PLAYER_MAX_HEALTH + stats.max_health_bonus
+    player.speed = PLAYER_SPEED * stats.speed
+    player.armor = stats.armor
+    player.health = math.min(maxHealth, player.health + (maxHealth - player.max_health))
+    player.max_health = maxHealth
+    run.weapon_modifiers = stats
+end
+
 function Run.choose(run, token, option)
     if run.result then
         return false
     end
-    return Progress.choose(run.progress, run, token, option)
+    local action = Build.choose(run.build, token, option)
+    if not action then
+        return false
+    end
+    if action.kind == "weapon" then
+        applyWeaponRank(run, action.id, action.level)
+    elseif action.kind == "passive" then
+        applyPassives(run)
+    else
+        local player = run.player
+        player.health = math.min(player.max_health, player.health + action.amount)
+    end
+    Progress.settleChoice(run.progress, run)
+    return true
+end
+
+function Run.reroll(run, token)
+    if run.result then
+        return false
+    end
+    local choice = Build.reroll(run.build, token)
+    if not choice then
+        return false
+    end
+    run.progress.choices = choice
+    return true
+end
+
+function Run.skip(run, token)
+    if run.result then
+        return false
+    end
+    local action = Build.skip(run.build, token)
+    if not action then
+        return false
+    end
+    Progress.settleChoice(run.progress, run, action.experience_fraction)
+    return true
+end
+
+function Run.banish(run, token, option)
+    if run.result or not Build.banish(run.build, token, option) then
+        return false
+    end
+    Progress.settleChoice(run.progress, run)
+    return true
 end
 
 function Run.random(run)
@@ -151,7 +224,10 @@ function Run.update(run, seconds, move_x, move_y)
             finish(run, "defeated")
             return completed
         end
-        Weapons.step(run.weapons, run, STEP, run.on_defeat)
+        for _, weapon in ipairs(run.weapon_systems) do
+            Weapons.step(weapon, run, STEP, run.on_defeat)
+            if run.result then break end
+        end
         Enemies.compact(run.enemies)
         if run.result then
             return completed

@@ -24,7 +24,7 @@ assert(early.result.outcome == "defeated" and early.result.tick == 2 and early.r
 assert(Run.update(early, 1) == 0)
 local events = Run.take_events(early)
 assert(#events == 1 and events[1].kind == "finished")
-assert(#Run.take_events(early) == 0 and not Run.choose(early, 1, "weapon"))
+assert(#Run.take_events(early) == 0 and not Run.choose(early, 1, "weapon:wind_blade"))
 assert(Run.restart(early).result == nil)
 
 local win = Run.new(9, trial(3, 1, 0))
@@ -57,9 +57,9 @@ assert(escape.enemies.active[1].id == escape.terminal_id, "the finale enemy rema
 local function advance(run)
     local choice = run.progress.choices
     if choice then
-        local selected = choice.options[1].id
+        local selected = choice.options[1].key
         for _, option in ipairs(choice.options) do
-            if option.id == "weapon" then selected = option.id end
+            if option.key == "weapon:wind_blade" then selected = option.key end
         end
         assert(Run.choose(run, choice.token, selected))
     else
