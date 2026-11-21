@@ -1,4 +1,5 @@
 local Passives = require("data.passives")
+local Limit = require("data.progress").limit_break
 local Build = {}
 
 local function addCatalog(target, definitions, kind)
@@ -17,7 +18,7 @@ local function addCatalog(target, definitions, kind)
     end
 end
 
-function Build.new(randomUnit, weaponCatalog, startingWeapon, overrides, weaponUnlocks)
+function Build.new(randomUnit, weaponCatalog, startingWeapon, overrides, weaponUnlocks, limitBreak)
     assert(type(randomUnit) == "function", "build requires the run's random source")
     local rules = {}
     for name, value in pairs(Passives.rules) do
@@ -66,6 +67,7 @@ function Build.new(randomUnit, weaponCatalog, startingWeapon, overrides, weaponU
     return {
         weapons = weapons, weapon_unlocks = unlocks,
         passives = {},
+        limit_ranks = limitBreak and {} or nil,
         catalog = catalog,
         rules = rules,
         remaining = { reroll = rules.reroll, skip = rules.skip, banish = rules.banish },
@@ -104,6 +106,30 @@ local function candidates(build)
                 level = (level or 0) + 1,
                 weight = weight,
             }
+        end
+    end
+    return pool
+end
+
+local function upgradePool(build)
+    local pool = candidates(build)
+    if #pool > 0 or not build.limit_ranks then
+        return pool
+    end
+    for _, item in ipairs(build.catalog) do
+        if item.kind == "weapon" and build.weapons[item.id] == item.max_level then
+            local rank = build.limit_ranks[item.id] or 0
+            if rank < Limit.max_weapon_rank then
+                pool[#pool + 1] = {
+                    key = "limit:" .. item.id,
+                    id = item.id,
+                    kind = "limit",
+                    label = item.label .. " · 极限强化",
+                    level = rank + 1,
+                    max_level = item.max_level,
+                    weight = 1,
+                }
+            end
         end
     end
     return pool
@@ -191,7 +217,7 @@ function Build.offer(build)
     if build.choices then
         return build.choices
     end
-    return publish(build, candidates(build))
+    return publish(build, upgradePool(build))
 end
 
 local function optionFor(build, token, key)
@@ -209,6 +235,16 @@ function Build.choose(build, token, key)
     local option = optionFor(build, token, key)
     if not option then
         return nil
+    end
+    if option.kind == "limit" then
+        local current = build.limit_ranks[option.id] or 0
+        if build.weapons[option.id] ~= option.max_level or current >= Limit.max_weapon_rank
+            or option.level ~= current + 1 then
+            return nil
+        end
+        build.limit_ranks[option.id] = option.level
+        build.choices = nil
+        return { kind = "limit", id = option.id, level = option.level }
     end
     build.choices = nil
     if option.kind == "reward" then
@@ -229,7 +265,7 @@ function Build.reroll(build, token)
     for _, option in ipairs(choice.options) do
         seen[option.key] = true
     end
-    local pool, alternatives = candidates(build), {}
+    local pool, alternatives = upgradePool(build), {}
     for _, option in ipairs(pool) do
         if not seen[option.key] then
             alternatives[#alternatives + 1] = option
@@ -261,7 +297,7 @@ end
 
 function Build.banish(build, token, key)
     local option = optionFor(build, token, key)
-    if option and option.kind ~= "reward" and build.remaining.banish > 0 then
+    if option and (option.kind == "weapon" or option.kind == "passive") and build.remaining.banish > 0 then
         build.remaining.banish = build.remaining.banish - 1
         build.banished[option.key] = true
         build.choices = nil

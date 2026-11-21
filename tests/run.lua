@@ -189,6 +189,7 @@ end
 dofile("tests/gil_client.lua")
 
 dofile("tests/modes.lua")
+dofile("tests/limit_break.lua")
 
 dofile("tests/journal.lua")
 

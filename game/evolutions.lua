@@ -85,6 +85,7 @@ function Evolutions.apply(run, chest, recipeId)
         for _, id in ipairs(recipe.weapons) do
             remove[id] = true
             build.weapons[id] = nil
+            if build.limit_ranks then build.limit_ranks[id] = nil end
             build.banished["weapon:" .. id] = true
         end
     end
