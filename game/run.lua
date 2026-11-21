@@ -76,8 +76,10 @@ function Run.new(seed, stage, weapon_id)
         accumulator = 0,
         paused = false,
         events = {},
+        bounds = { min_x = -WORLD_EDGE, max_x = WORLD_EDGE, min_y = -WORLD_EDGE, max_y = WORLD_EDGE },
         player = {
             x = 0, y = 0, radius = 0.42, speed = PLAYER_SPEED, armor = 0,
+            facing_x = 1, facing_y = 0,
             health = PLAYER_MAX_HEALTH, max_health = PLAYER_MAX_HEALTH,
         },
     }
@@ -230,6 +232,9 @@ function Run.update(run, seconds, move_x, move_y)
     for completed = 1, steps do
         run.tick = run.tick + 1
         local player = run.player
+        if x ~= 0 or y ~= 0 then
+            player.facing_x, player.facing_y = x, y
+        end
         player.x = constrain(player.x + x * player.speed * STEP)
         player.y = constrain(player.y + y * player.speed * STEP)
         if run.tick == run.stage.duration_ticks then
