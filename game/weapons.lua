@@ -69,7 +69,7 @@ local function damage(system, attack, enemy, dx, dy, onKill)
     end
     if Enemies.damage(enemy, amount) then
         if onKill then
-            onKill(enemy)
+            onKill(enemy, attack.origin)
         end
     elseif attack.knockback > 0 then
         dx, dy = direction(dx, dy)
@@ -154,10 +154,11 @@ local function launch(system, weapon, attack, stats, mod, player, target, range)
     end
 
     local count = stats.shots or 1
+    local echoCount = math.min(2, math.max(0, math.floor(mod.echo_shots or 0)))
     local projectiles = system.projectiles
-    for shot = 1, count do
+    for shot = 1, count + echoCount do
         local projectile = attack
-        if count > 1 then
+        if count + echoCount > 1 then
             projectile = {}
             for key, value in pairs(attack) do
                 projectile[key] = value
@@ -165,9 +166,16 @@ local function launch(system, weapon, attack, stats, mod, player, target, range)
         end
         projectile.hit_ids = {}
         projectile.dx, projectile.dy = forwardX, forwardY
-        if count > 1 then
-            local offset = weapon.radial and (shot - 1) * 2 * math.pi / count
+        local offset
+        if shot > count then
+            offset = (shot - count) % 2 == 1 and 0.22 or -0.22
+            projectile.origin = "perk"
+            projectile.damage = projectile.damage * (mod.echo_damage or 0.55)
+        elseif count > 1 then
+            offset = weapon.radial and (shot - 1) * 2 * math.pi / count
                 or (shot - (count + 1) / 2) * stats.angle_step
+        end
+        if offset then
             local c, si = math.cos(offset), math.sin(offset)
             projectile.dx = forwardX * c - forwardY * si
             projectile.dy = forwardX * si + forwardY * c
@@ -187,9 +195,9 @@ local function launch(system, weapon, attack, stats, mod, player, target, range)
             projectile.apex = stats.apex
             projectile.height = 0
         elseif weapon.motion == "rebound" then
-            projectile.remaining_bounces = stats.bounces
+            projectile.remaining_bounces = stats.bounces + math.max(0, math.floor(mod.bounces or 0))
         elseif weapon.motion == "return" then
-            projectile.return_distance = range * stats.return_ratio
+            projectile.return_distance = range * stats.return_ratio * (mod.return_range or 1)
         end
         projectiles[#projectiles + 1] = projectile
     end
@@ -226,7 +234,7 @@ local function fire(system, run, enemies, onKill)
         radius = stats.radius * (mod.area or 1),
         damage = stats.damage * (mod.damage or 1),
         crit_chance = math.max(0, math.min(1, (stats.crit_chance or 0) + (mod.crit_chance or 0))),
-        crit_multiplier = stats.crit_multiplier or 1.5,
+        crit_multiplier = (stats.crit_multiplier or 1.5) * (mod.crit_damage or 1),
         knockback = (stats.knockback or 0) * (mod.knockback or 1),
     }
     if stats.low_health_fraction and run.player.health <= run.player.max_health * stats.low_health_fraction then
@@ -307,7 +315,7 @@ local function impactBlast(system, projectile, enemies, victim, x, y, onKill)
         pulse(system, {
             x = x, y = y, radius = projectile.blast_radius,
             damage = projectile.damage * projectile.blast_multiplier,
-            crit_chance = 0, knockback = 0, max_hits_per_target = 1,
+            crit_chance = 0, knockback = 0, max_hits_per_target = 1, origin = projectile.origin,
             hit_ids = { [victim.id] = 1 },
         }, enemies, onKill)
     end
@@ -540,6 +548,8 @@ function Weapons.step(system, run, dtSeconds, onKill)
         if projectile.remaining_distance > 0 and projectile.remaining_hits > 0 then
             alive = alive + 1
             projectiles[alive] = projectile
+        elseif run.perk_event and projectile.origin ~= "perk" then
+            run.perk_event("projectile_end", nil, projectile)
         end
     end
     for i = alive + 1, count do

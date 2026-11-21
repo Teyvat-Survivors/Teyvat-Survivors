@@ -87,7 +87,12 @@ local function collect(system, run, item)
         if run.perk_event then run.perk_event("pickup", "coin") end
     elseif item.kind == "healing" then
         local multiplier = math.max(0, player.healing_multiplier or 1)
-        player.health = math.min(player.max_health, player.health + Data.healing_value * multiplier)
+        local perkHealing = run.weapon_modifiers and run.weapon_modifiers.healing or 1
+        local previousHealth = player.health
+        player.health = math.min(player.max_health, player.health + Data.healing_value * multiplier * perkHealing)
+        if run.perk_event and player.health > previousHealth then
+            run.perk_event("heal", nil, { amount = player.health - previousHealth })
+        end
     elseif item.kind == "magnet" then
         for _, gem in ipairs(run.progress.pickups) do
             gem.attracted = true
@@ -113,7 +118,7 @@ function Loot.step(system, run)
     for i = 1, count do
         local item = pickups[i]
         local dx, dy = item.x - player.x, item.y - player.y
-        if dx * dx + dy * dy <= radiusSquared and not Loot.hasChoice(system) then
+        if dx * dx + dy * dy <= radiusSquared and not Loot.hasChoice(system) and not run.result then
             collect(system, run, item)
         else
             retained = retained + 1

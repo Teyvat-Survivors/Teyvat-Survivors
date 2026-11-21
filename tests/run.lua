@@ -194,4 +194,18 @@ dofile("tests/journal.lua")
 
 dofile("tests/rewards.lua")
 
+dofile("tests/perk_catalog.lua")
+
+do
+    local supported = {}
+    for _, perk in ipairs(require("data.perks").cards) do supported[perk.id] = true end
+    for _, milestone in ipairs(require("data.journal").milestones) do
+        for id in pairs(milestone.grants.perks or {}) do
+            assert(supported[id], "progression unlock must target a published perk")
+            supported[id] = nil
+        end
+    end
+    assert(next(supported) == nil, "every perk has a saved progression unlock")
+end
+
 dofile("tests/platform_probe.lua")
