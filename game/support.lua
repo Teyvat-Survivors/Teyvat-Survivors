@@ -49,11 +49,12 @@ function handlers.stasis(stats, modifiers, run, enemies)
 end
 
 function handlers.purge(stats, modifiers, run, enemies, onKill)
-    local radius = stats.radius * (modifiers.area or 1)
+    local radius = (stats.radius or 0) * (modifiers.area or 1)
     local eliteDamage = stats.elite_damage * (modifiers.damage or 1)
     local affected = false
     for _, enemy in ipairs(enemies) do
-        if enemy.health > 0 and not enemy.isTerminal and inRange(enemy, run.player, radius + enemy.radius) then
+        if enemy.health > 0 and not enemy.isTerminal and
+            (stats.arena_wide or inRange(enemy, run.player, radius + enemy.radius)) then
             local amount = enemy.isElite and eliteDamage or enemy.health
             if amount > 0 then
                 affected = true

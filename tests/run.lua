@@ -133,4 +133,6 @@ end
 
 dofile("tests/stages.lua")
 
+dofile("tests/weapon_catalog.lua")
+
 dofile("tests/platform_probe.lua")

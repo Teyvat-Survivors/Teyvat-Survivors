@@ -5,7 +5,7 @@ status: To Do
 assignee:
   - '@FurinyaDev'
 created_date: '2026-11-21 03:03'
-updated_date: '2026-11-21 03:25'
+updated_date: '2026-11-21 04:02'
 labels: []
 milestone: m-3
 dependencies:
@@ -13,6 +13,7 @@ dependencies:
   - TS-16
   - TS-17
   - TS-29
+  - TS-37
 ordinal: 22
 ---
 
