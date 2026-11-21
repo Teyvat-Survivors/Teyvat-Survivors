@@ -1,0 +1,64 @@
+{
+  "authorities": {
+    "change": "github-pull-requests",
+    "evidence": "github-checks",
+    "integration": "github-rules",
+    "product": "repository-docs",
+    "revision": "github-target-ref",
+    "work": "repository-backlog",
+    "workspace": "git-worktree"
+  },
+  "envelope": {
+    "excluded_transitions": [
+      "arbitrary-local-writes",
+      "administrator-policy-reconfiguration"
+    ],
+    "trusted_actors": [
+      "repository-admins",
+      "ci-maintainers",
+      "local-executor"
+    ],
+    "workspace_writers": "single"
+  },
+  "mode": "cooperative",
+  "profile": "github-backlog-v1",
+  "repository": "Teyvat-Survivors/Teyvat-Survivors",
+  "schema": 1,
+  "target": "main",
+  "verification": {
+    "commands": [
+      [
+        "npx",
+        "--yes",
+        "backlog.md@1.53.0",
+        "task",
+        "list",
+        "--json"
+      ]
+    ],
+    "controller": null,
+    "environment": {},
+    "expected_app_id": null,
+    "material_inputs": [
+      "backlog/config.yml"
+    ],
+    "required_check": "openharness / candidate",
+    "sandbox_image": null
+  },
+  "work": {
+    "actors": {
+      "@FurinyaDev": "FurinyaDev"
+    },
+    "directories": [
+      "backlog/tasks",
+      "backlog/completed",
+      "backlog/archive/tasks"
+    ],
+    "done_status": "Done",
+    "format": "backlog-md-1.53-subset-v1",
+    "ready_statuses": [
+      "To Do",
+      "In Progress"
+    ]
+  }
+}
