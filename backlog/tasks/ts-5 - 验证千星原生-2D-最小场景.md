@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@FurinyaDev'
 created_date: '2026-11-21 03:03'
-updated_date: '2026-11-21 03:35'
+updated_date: '2026-11-21 04:20'
 labels: []
 milestone: m-1
 dependencies:
@@ -28,5 +28,5 @@ ordinal: 5
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-提交按官方 Lua 5.3 接口编写的原生控件探针和导入导出步骤，离线替身测试验证输入、画布生命周期、图片池、相机投影和音效调用。当前 Linux 环境缺少千星编辑器和原神客户端，PC、移动端、项目 GIL 导入和导出仍待验证。任务保持 In Progress。
+统一登记各类客户端控件。编辑器模板实例化或校验失败时停止更新并回收已生成控件。源码、打包、缺少 Label 和失效文本模板的离线测试通过。保留 PC 与移动端原生验收阻塞。
 <!-- SECTION:NOTES:END -->

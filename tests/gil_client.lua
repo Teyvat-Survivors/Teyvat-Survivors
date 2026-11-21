@@ -5,6 +5,7 @@ for _, name in ipairs(globals) do previousGlobals[name] = _G[name] end
 
 local bundle = arg[2] == "bundle"
 local invalidActionTemplate = arg[2] == "invalid-template"
+local invalidTextTemplate = arg[2] == "invalid-text"
 local Run = require("game.run")
 local stages = require("data.stages")
 local oldStage = stages.windward
@@ -119,6 +120,7 @@ game = {
         playing = false
     end,
     InstantiateClientUIControl = function(id, parent)
+        if id == 101 and invalidTextTemplate then return nil end
         local kinds = { [100] = "image", [101] = "text", [102] = "button" }
         local node = control(assert(kinds[id]), parent)
         rendered[#rendered + 1] = node
@@ -162,15 +164,16 @@ local function touchEvent(id, x, y)
 end
 
 dofile(arg[1] or "gil/client.lua")
-if invalidActionTemplate then
+if invalidActionTemplate or invalidTextTemplate then
     sWidth, sHeight = 1260, 720
     OnStart()
     local success, reason = pcall(OnUpdate, Run.step_seconds)
-    assert(not success and reason:find("Label", 1, true))
+    local expected = invalidActionTemplate and "Label" or "根模板索引"
+    assert(not success and reason:find(expected, 1, true) and not script.updating)
     OnDestroy()
     for _, node in ipairs(rendered) do assert(not node.alive) end
     restore()
-    print("Invalid Miliastra action template left no instantiated controls")
+    print("Invalid Miliastra template left no instantiated controls")
     return
 end
 OnEnable()

@@ -57,8 +57,9 @@ local function place(control, x, y, width, height)
     control:SetSizeDelta(width, height)
 end
 
-local function createControl(prefab, parent)
+local function createControl(state, prefab, parent)
     local control = assert(game.InstantiateClientUIControl(prefab, parent), "检查客户端根模板索引")
+    state.dynamic[#state.dynamic + 1] = control
     control:SetAnchorMin(0.5, 0.5)
     control:SetAnchorMax(0.5, 0.5)
     control:SetPivot(0.5, 0.5)
@@ -66,7 +67,7 @@ local function createControl(prefab, parent)
 end
 
 local function newText(state, panel)
-    local control = createControl(state.textPrefab, state.root)
+    local control = createControl(state, state.textPrefab, state.root)
     control:SetActive(true)
     control.fontColor = state.palette.text
     if panel then control.bgColor = state.palette.panel end
@@ -387,7 +388,7 @@ local function draw(state, pool, x, y, radius, tint)
     pool.count = pool.count + 1
     local sprite = pool.sprites[pool.count]
     if not sprite then
-        local control = createControl(state.imagePrefab, state.world)
+        local control = createControl(state, state.imagePrefab, state.world)
         if pool.behind then control:SetAsFirstSibling() end
         sprite = { control = control }
         pool.sprites[pool.count] = sprite
@@ -455,10 +456,9 @@ local function drawWorld(state)
 end
 
 local function createButton(state)
-    local root = createControl(state.actionPrefab, state.root)
+    local root = createControl(state, state.actionPrefab, state.root)
     local label, hit = root:GetChild("Label"), root:GetChild("Hit")
     if not label or not hit then
-        game.DestroyClientUIControl(root)
         error("操作模板需要 Label 文本框和 Hit 光标检测区域")
     end
     label.fontColor = state.palette.text
@@ -492,21 +492,17 @@ local function layout(state, width, height)
     place(state.touch, -width * 0.5 + 155 * scale, -height * 0.5 + 153 * scale, 278 * scale, 267 * scale)
 end
 
-local function setup(width, height)
-    local root = assert(script.object, "将脚本挂载到 GameRoot")
-    local client = {
-        root = root, world = assert(root:GetChild("World"), "GameRoot 缺少 World"),
-        touch = assert(root:GetChild("MoveArea"), "GameRoot 缺少 MoveArea"),
-        imagePrefab = script:GetParam("TSImageTemplate"),
-        textPrefab = script:GetParam("TSTextTemplate"),
-        actionPrefab = script:GetParam("TSActionTemplate"),
-        audioId = script:GetParam("TSConfirmAudio") or 0,
-        buttons = {}, listeners = {}, palette = {}, frame = 0, pressGeneration = 0,
-        pools = {
-            ground = pool(160, true), terrain = pool(16, true), fields = pool(36, true),
-            shots = pool(96), pickups = pool(96), enemies = pool(300), player = pool(1),
-        },
-    }
+local function teardown(client)
+    unbind(client)
+    stopConfirm(client)
+    for index = #client.dynamic, 1, -1 do
+        local control = client.dynamic[index]
+        if control.alive then game.DestroyClientUIControl(control) end
+    end
+end
+
+local function populate(client, width, height)
+    local root = client.root
     assert(finite(client.audioId) and client.audioId >= 0, "TSConfirmAudio 必须是已配置的音效 ID 或 0")
     for _, prefab in ipairs({ "imagePrefab", "textPrefab", "actionPrefab" }) do
         assert(finite(client[prefab]) and client[prefab] > 0, "配置脚本的客户端根模板索引")
@@ -537,6 +533,29 @@ local function setup(width, height)
     active(client.pause.root, false)
     visible(client.padText.control, false)
     bindInput(client)
+end
+
+local function setup(width, height)
+    local root = assert(script.object, "将脚本挂载到 GameRoot")
+    local client = {
+        root = root, world = assert(root:GetChild("World"), "GameRoot 缺少 World"),
+        touch = assert(root:GetChild("MoveArea"), "GameRoot 缺少 MoveArea"),
+        imagePrefab = script:GetParam("TSImageTemplate"),
+        textPrefab = script:GetParam("TSTextTemplate"),
+        actionPrefab = script:GetParam("TSActionTemplate"),
+        audioId = script:GetParam("TSConfirmAudio") or 0,
+        buttons = {}, listeners = {}, dynamic = {}, palette = {}, frame = 0, pressGeneration = 0,
+        pools = {
+            ground = pool(160, true), terrain = pool(16, true), fields = pool(36, true),
+            shots = pool(96), pickups = pool(96), enemies = pool(300), player = pool(1),
+        },
+    }
+    local ok, reason = pcall(populate, client, width, height)
+    if not ok then
+        teardown(client)
+        script:EnableUpdate(false)
+        error(reason, 0)
+    end
     return client
 end
 
@@ -599,21 +618,8 @@ function OnDisable()
 end
 
 function OnDestroy()
-    if not state then return end
-    unbind(state)
-    stopConfirm(state)
-    for _, items in pairs(state.pools) do
-        for _, sprite in ipairs(items.sprites) do
-            if sprite.control.alive then game.DestroyClientUIControl(sprite.control) end
-        end
+    if state then
+        teardown(state)
+        state = nil
     end
-    for _, name in ipairs({ "title", "detail", "hud", "padText", "budget" }) do
-        local control = state[name].control
-        if control.alive then game.DestroyClientUIControl(control) end
-    end
-    for _, button in ipairs(state.buttons) do
-        if button.root.alive then game.DestroyClientUIControl(button.root) end
-    end
-    if state.pause.root.alive then game.DestroyClientUIControl(state.pause.root) end
-    state = nil
 end
