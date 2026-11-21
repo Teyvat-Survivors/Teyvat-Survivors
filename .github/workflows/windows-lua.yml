@@ -1,0 +1,78 @@
+name: Windows Lua
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/windows-lua.yml'
+      - 'data/**'
+      - 'game/**'
+      - 'gil/**'
+      - 'tests/**'
+      - 'tools/bundle_gil.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/windows-lua.yml'
+      - 'data/**'
+      - 'game/**'
+      - 'gil/**'
+      - 'tests/**'
+      - 'tools/bundle_gil.py'
+
+permissions:
+  contents: read
+
+jobs:
+  lua:
+    name: Windows Lua tests and client bundle
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          persist-credentials: false
+
+      - name: Build Lua 5.3.6
+        shell: pwsh
+        working-directory: ${{ runner.temp }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $archive = 'lua-5.3.6.tar.gz'
+          $sha256 = 'fc5fd69bb8736323f026672b1b7235da613d7177e72558893a0bdcd320466d60'
+          Invoke-WebRequest -Uri "https://www.lua.org/ftp/$archive" -OutFile $archive
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne $sha256) {
+            throw 'Lua source archive checksum mismatch.'
+          }
+          tar -xzf $archive
+          $sourceDir = Join-Path $env:RUNNER_TEMP 'lua-5.3.6/src'
+          $sources = Get-ChildItem -LiteralPath $sourceDir -Filter '*.c' -File |
+            Where-Object Name -ne 'luac.c' |
+            Select-Object -ExpandProperty FullName
+          gcc -O2 -o (Join-Path $sourceDir 'lua.exe') @sources
+          $sourceDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Run Lua tests
+        run: lua tests/run.lua
+
+      - name: Rebuild and test the client bundle
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $bundle = Join-Path $env:RUNNER_TEMP 'teyvat-survivors-client.lua'
+          $repeat = Join-Path $env:RUNNER_TEMP 'teyvat-survivors-repeat.lua'
+          python tools/bundle_gil.py $bundle
+          python tools/bundle_gil.py $repeat
+          if ((Get-FileHash $bundle).Hash -ne (Get-FileHash $repeat).Hash) {
+            throw 'The client bundle changed between builds.'
+          }
+          lua tests/gil_client.lua $bundle bundle
+
+      - name: Upload the tested client script
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: teyvat-survivors-client-lua
+          path: ${{ runner.temp }}/teyvat-survivors-client.lua
+          if-no-files-found: error
+          retention-days: 14
