@@ -17,6 +17,7 @@ function Modes.resolve(options)
         mirrored = flag(options, "mirrored"),
         quick = flag(options, "quick"),
         endless = flag(options, "endless"),
+        limit_break = flag(options, "limit_break"),
     }
 end
 

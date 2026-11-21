@@ -215,14 +215,14 @@ local function newRun(seed, stage, weapon_id, base_stats, character, options)
     end
     run.enemies = Enemies.new(stage.waves, randomUnit)
     local starters = character and Characters.loadout(character, randomUnit) or { weapon_id or "wind_blade" }
-    run.build = Build.new(randomUnit, WeaponData, starters, stage.build_rules, options and options.weapon_unlocks)
+    run.build = Build.new(randomUnit, WeaponData, starters, stage.build_rules, options and options.weapon_unlocks, mode.limit_break)
     run.weapon_systems = {}
     for i, id in ipairs(starters) do
         run.weapon_systems[i] = Weapons.new(id, randomUnit)
     end
     run.weapons = run.weapon_systems[1]
     run.evolutions = {}
-    run.progress = Progress.new()
+    run.progress = Progress.new(mode.limit_break)
     projectStats(run)
     local lootSeed = (seed * 16807) % SEED_MODULUS
     run.loot = Loot.new(function()
@@ -300,7 +300,7 @@ function Run.choose(run, token, option)
         applyWeaponRank(run, action.id, action.level)
     elseif action.kind == "passive" then
         projectStats(run)
-    else
+    elseif action.kind == "reward" then
         heal(run, action.amount)
     end
     Progress.settleChoice(run.progress, run)

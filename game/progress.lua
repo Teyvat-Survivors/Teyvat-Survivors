@@ -2,11 +2,12 @@ local Data = require("data.progress")
 local Build = require("game.build")
 
 local Progress = {}
-local MAX_LEVEL = #Data.experience_to_next + 1
+local NORMAL_MAX_LEVEL = #Data.experience_to_next + 1
 
-function Progress.new()
+function Progress.new(limitBreak)
     return {
         level = 1,
+        max_level = NORMAL_MAX_LEVEL + (limitBreak and Data.limit_break.extra_levels or 0),
         xp = 0,
         xpNeeded = Data.experience_to_next[1],
         pickups = {},
@@ -15,7 +16,7 @@ function Progress.new()
 end
 
 function Progress.drop(system, enemy)
-    if system.level == MAX_LEVEL then
+    if system.level == system.max_level then
         return nil
     end
 
@@ -38,15 +39,25 @@ local function offerChoice(system, run)
     system.choices = system.pending > 0 and Build.offer(run.build) or nil
 end
 
+local function nextThreshold(system)
+    if system.level >= system.max_level then
+        return nil
+    end
+    if system.level < NORMAL_MAX_LEVEL then
+        return Data.experience_to_next[system.level]
+    end
+    return Data.limit_break.first_threshold + (system.level - NORMAL_MAX_LEVEL) * Data.limit_break.threshold_step
+end
+
 local function gainExperience(system, run, value)
     system.xp = system.xp + value
     while system.xpNeeded and system.xp >= system.xpNeeded do
         system.xp = system.xp - system.xpNeeded
         system.level = system.level + 1
         system.pending = system.pending + 1
-        system.xpNeeded = Data.experience_to_next[system.level]
+        system.xpNeeded = nextThreshold(system)
     end
-    if system.level == MAX_LEVEL then
+    if system.level == system.max_level then
         system.xp = 0
         for i = #system.pickups, 1, -1 do
             system.pickups[i] = nil

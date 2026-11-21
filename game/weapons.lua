@@ -1,6 +1,7 @@
 local Enemies = require("game.enemies")
 local Support = require("game.support")
 local data = require("data.weapons")
+local Limit = require("data.progress").limit_break
 local Weapons = {}
 
 local function defaultRandom()
@@ -207,7 +208,10 @@ local function fire(system, run, enemies, onKill)
     local weapon = data[system.id]
     local stats = weapon.levels[system.level]
     local mod = run.weapon_modifiers or neutralModifiers
-    local cooldown = math.max(1, math.ceil(stats.cooldown_ticks * (mod.cooldown or 1)))
+    local limitRanks = run.build and run.build.limit_ranks
+    local rank = limitRanks and math.min(limitRanks[system.id] or 0, Limit.max_weapon_rank) or 0
+    local limitMultiplier = 1 - rank * Limit.cooldown_reduction_per_rank
+    local cooldown = math.max(1, math.ceil(stats.cooldown_ticks * (mod.cooldown or 1) * limitMultiplier))
     local supported = Support.activate(weapon.behavior, stats, mod, run, enemies, onKill)
     if supported ~= nil then
         if supported then
