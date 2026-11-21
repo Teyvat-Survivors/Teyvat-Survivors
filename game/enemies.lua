@@ -45,6 +45,8 @@ function Enemies.new(config, randomUnit)
         active = {},
         free = {},
         nextWave = 1,
+        waveTickOffset = 0,
+        pressure = 1,
         nextContactTick = 0,
         totalSpawned = 0,
         totalSkipped = 0,
@@ -89,16 +91,18 @@ local function spawn(system, player, kindId)
     enemy.treasureKind = kind.treasure_kind
     enemy.controlImmune = kind.controlImmune == true
     enemy.slowFactor, enemy.slowUntilTick, enemy.slowReadyTick = nil, nil, nil
-    enemy.x = player.x + math.cos(angle) * distance
+    local spawnX = math.cos(angle) * distance
+    enemy.x = player.x + (system.config.mirrorHorizontal and -spawnX or spawnX)
     enemy.y = player.y + math.sin(angle) * distance
     enemy.radius = kind.radius
     enemy.speed = kind.speed
-    enemy.health = kind.health
-    enemy.contactDamage = kind.contactDamage
+    enemy.health = kind.health * (system.config.enemyHealthMultiplier or 1) * system.pressure
+    enemy.damageScale = (system.config.enemyDamageMultiplier or 1) * system.pressure
+    enemy.contactDamage = kind.contactDamage * enemy.damageScale
     enemy.xp = kind.xp
     enemy.charge = kind.charge
     enemy.frenzy = kind.frenzy
-    enemy.maxHealth = kind.health
+    enemy.maxHealth = enemy.health
     enemy.phase = kind.frenzy and 1 or nil
     enemy.motion = kind.charge and "approach" or nil
     enemy.motionEndsTick = nil
@@ -118,6 +122,12 @@ local function spawnWave(system, player, wave)
     end
 end
 
+function Enemies.begin_cycle(system, tickOffset, pressure)
+    system.nextWave = 1
+    system.waveTickOffset = tickOffset
+    system.pressure = pressure
+end
+
 function Enemies.begin_finale(system, player, kindId)
     for index = #system.active, 1, -1 do
         system.free[#system.free + 1] = system.active[index]
@@ -134,7 +144,7 @@ local function updateFrenzy(enemy)
     if frenzy and enemy.phase == 1 and enemy.health <= enemy.maxHealth * frenzy.healthFraction then
         enemy.phase = 2
         enemy.speed = frenzy.speed
-        enemy.contactDamage = frenzy.contactDamage
+        enemy.contactDamage = frenzy.contactDamage * enemy.damageScale
     end
 end
 
@@ -199,7 +209,7 @@ function Enemies.step(system, run, dtSeconds)
 
     local spawns = system.config.spawns
     local wave = spawns[system.nextWave]
-    while wave and wave.tick <= run.tick do
+    while wave and wave.tick + system.waveTickOffset <= run.tick do
         spawnWave(system, player, wave)
         system.nextWave = system.nextWave + 1
         wave = spawns[system.nextWave]

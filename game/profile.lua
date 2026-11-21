@@ -6,6 +6,7 @@ local VERSION = 1
 local MAX_VALUE = 2147483647
 local outcomes = {
     defeated = "loss",
+    retired = "loss",
     finale_defeated = "win",
     finale_survived = "win",
 }
