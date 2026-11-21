@@ -418,9 +418,7 @@ local function drawWorld(state)
     local player = run.player
     local halfX = state.width / (2 * state.worldScale)
     if run.stage.straight_lane then
-        local left = math.max(run.bounds.min_x, player.x - halfX)
-        local right = math.min(run.bounds.max_x, player.x + halfX)
-        draw(state, p.ground, (left + right) / 2, 0, 0.15, "ground", right - left)
+        draw(state, p.ground, player.x, 0, 0.15, "ground", 2 * halfX)
     else
         local grid = 8
         local halfY = state.height / (2 * state.worldScale)

@@ -303,6 +303,19 @@ local oldRun = live
 OnUpdate(0)
 action("再来一局")
 assert(live ~= oldRun and live.tick == 0 and not live.result and world.active)
+live.stage.straight_lane = true
+live.player.x = live.bounds.max_x
+live.enemies.active[1] = { x = live.player.x + 10, y = 0, radius = 0.5 }
+OnUpdate(0)
+local laneColor = Color.FromRGBA(108, 146, 152, 150)
+local laneVisible = false
+for _, node in ipairs(world.instances) do
+    if node.visible and node.imageColor == laneColor then
+        assert(node.y == 0 and node.width > sWidth * 0.9)
+        laneVisible = true
+    end
+end
+assert(laneVisible, "the straight lane covers visible enemy entrances beyond the player limit")
 OnDisable()
 assert(not script.updating and not playing and next(root.keys) == nil and next(touch.cursors) == nil)
 OnEnable()
