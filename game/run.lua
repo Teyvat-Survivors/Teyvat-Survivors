@@ -1,7 +1,7 @@
 local Enemies = require("game.enemies")
 local Weapons = require("game.weapons")
 local Progress = require("game.progress")
-local waves = require("data.waves")
+local stages = require("data.stages")
 
 local Run = {}
 
@@ -33,7 +33,24 @@ local function movement(x, y)
     return x, y
 end
 
-function Run.new(seed)
+local function emit(run, kind)
+    run.events[#run.events + 1] = { kind = kind, tick = run.tick }
+end
+
+local function finish(run, outcome)
+    if not run.result then
+        run.result = {
+            outcome = outcome,
+            stage = run.stage.id,
+            tick = run.tick,
+            kills = run.kills,
+            level = run.progress.level,
+        }
+        emit(run, "finished")
+    end
+end
+
+function Run.new(seed, stage)
     if seed == nil then
         seed = 1
     end
@@ -41,7 +58,13 @@ function Run.new(seed)
         type(seed) == "number" and seed >= 1 and seed < SEED_MODULUS and seed % 1 == 0,
         "run seed must be an integer from 1 to 2147483646"
     )
+    stage = stage or stages.windward
+    assert(stage.duration_ticks >= 1 and stage.duration_ticks % 1 == 0, "invalid stage duration")
+    assert(stage.terminal_timeout_ticks >= 1 and stage.terminal_timeout_ticks % 1 == 0, "invalid finale duration")
+    assert(stage.waves.capacity > 0 and stage.waves.types[stage.terminal_kind], "invalid finale enemy")
     local run = {
+        stage = stage,
+        kills = 0,
         seed = seed,
         random_state = seed,
         tick = 0,
@@ -50,7 +73,7 @@ function Run.new(seed)
         events = {},
         player = { x = 0, y = 0, speed = 6, radius = 0.42, health = 100, max_health = 100 },
     }
-    run.enemies = Enemies.new(waves, function()
+    run.enemies = Enemies.new(stage.waves, function()
         return Run.random(run)
     end)
     run.weapons = Weapons.new()
@@ -58,12 +81,24 @@ function Run.new(seed)
         return Run.random(run)
     end)
     run.on_defeat = function(enemy)
-        Progress.drop(run.progress, enemy)
+        run.kills = run.kills + 1
+        if enemy.id == run.terminal_id then
+            finish(run, "finale_defeated")
+        else
+            Progress.drop(run.progress, enemy)
+        end
     end
     return run
 end
 
+function Run.restart(run, seed)
+    return Run.new(seed or run.seed, run.stage)
+end
+
 function Run.choose(run, token, option)
+    if run.result then
+        return false
+    end
     return Progress.choose(run.progress, run, token, option)
 end
 
@@ -76,7 +111,7 @@ function Run.set_paused(run, paused)
     assert(type(paused) == "boolean", "pause state must be a boolean")
     if run.paused ~= paused then
         run.paused = paused
-        run.events[#run.events + 1] = { kind = paused and "paused" or "resumed", tick = run.tick }
+        emit(run, paused and "paused" or "resumed")
     end
 end
 
@@ -91,7 +126,7 @@ function Run.update(run, seconds, move_x, move_y)
     if move_y == nil then move_y = 0 end
     assert(finite(seconds) and seconds >= 0, "frame time must be finite and nonnegative")
     assert(finite(move_x) and finite(move_y), "movement must be finite")
-    if run.paused or Progress.hasChoice(run.progress) then
+    if run.result or run.paused or Progress.hasChoice(run.progress) then
         return 0
     end
     local x, y = movement(move_x, move_y)
@@ -103,9 +138,25 @@ function Run.update(run, seconds, move_x, move_y)
         local player = run.player
         player.x = constrain(player.x + x * player.speed * STEP)
         player.y = constrain(player.y + y * player.speed * STEP)
+        if run.tick == run.stage.duration_ticks then
+            local terminal = Enemies.begin_finale(run.enemies, player, run.stage.terminal_kind)
+            run.terminal_id = terminal.id
+            emit(run, "finale_started")
+        end
         Enemies.step(run.enemies, run, STEP)
+        if player.health == 0 then
+            finish(run, "defeated")
+            return completed
+        end
         Weapons.step(run.weapons, run, STEP, run.on_defeat)
         Enemies.compact(run.enemies)
+        if run.result then
+            return completed
+        end
+        if run.terminal_id and run.tick >= run.stage.duration_ticks + run.stage.terminal_timeout_ticks then
+            finish(run, "finale_survived")
+            return completed
+        end
         Progress.step(run.progress, run, STEP)
         if Progress.hasChoice(run.progress) then
             run.accumulator = 0
