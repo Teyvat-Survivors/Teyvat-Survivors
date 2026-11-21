@@ -1,11 +1,11 @@
 ---
 id: TS-3
 title: 接通 Lua 测试入口和 GitHub CI
-status: In Progress
+status: Done
 assignee:
   - '@FurinyaDev'
 created_date: '2026-11-21 03:03'
-updated_date: '2026-11-21 03:26'
+updated_date: '2026-11-21 03:28'
 labels: []
 milestone: m-0
 dependencies:
@@ -21,7 +21,13 @@ ordinal: 3
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 记录 Lua 与目标运行时的兼容假设，提交能运行的 Lua 测试和命令。失败断言使本地和 CI 返回失败。
-- [ ] #2 接通一条仓库 GitHub Actions 工作流并用真实 PR 核验工作流、检查名与 App 来源。配置 OpenHarness verification，运行 entry、verify、doctor。
-- [ ] #3 核验 main 分支规则和 PR 审查设置。按实际权限配置所需保护，记录无法读写或未启用项。
+- [x] #1 记录 Lua 与目标运行时的兼容假设，提交能运行的 Lua 测试和命令。失败断言使本地和 CI 返回失败。
+- [x] #2 接通一条仓库 GitHub Actions 工作流并用真实 PR 核验工作流、检查名与 App 来源。配置 OpenHarness verification，运行 entry、verify、doctor。
+- [x] #3 核验 main 分支规则和 PR 审查设置。按实际权限配置所需保护，记录无法读写或未启用项。
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Lua 5.3.6 本地验证和真实 PR #4 的 Lua and Backlog 检查通过，检查来源 App 为 15368，关联本 PR 和工作流。已运行 OpenHarness entry、verify、doctor。Doctor 记录未建立的原生保证。main 未启用分支保护，已核对保护查询和写入均因当前 GitHub App 权限返回 403。后续需要组织管理权限。
+<!-- SECTION:FINAL_SUMMARY:END -->
