@@ -40,7 +40,7 @@ function Loot.defeat(system, enemy)
     end
     system.rewarded[enemy] = enemy.id
 
-    local kind = Data.treasure_sources[enemy.kind] and "treasure" or roll(system)
+    local kind = (enemy.isElite or Data.treasure_sources[enemy.kind]) and "treasure" or roll(system)
     if kind == "none" then
         return nil
     end

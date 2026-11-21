@@ -20,6 +20,20 @@ for second = 20, duration_seconds - 10, 10 do
             count = 1 + tier,
         }
     end
+    if second >= 50 and second % 40 == 10 then
+        spawns[#spawns + 1] = {
+            tick = second * ticks_per_second,
+            kind = "gale_runner",
+            count = 1 + math.floor(tier / 2),
+        }
+    end
+    if second >= 100 and second % 80 == 20 then
+        spawns[#spawns + 1] = {
+            tick = second * ticks_per_second,
+            kind = "ember_ram",
+            count = 1,
+        }
+    end
 end
 
 return {
@@ -37,7 +51,15 @@ return {
             types = {
                 drift = introductory.types.drift,
                 sentinel = introductory.types.sentinel,
-                tempest = { radius = 1.4, speed = 5.5, health = 210, contactDamage = 20 },
+                gale_runner = introductory.types.gale_runner,
+                ember_ram = introductory.types.ember_ram,
+                tempest = {
+                    radius = 1.4,
+                    speed = 5.5,
+                    health = 210,
+                    contactDamage = 20,
+                    frenzy = { healthFraction = 0.45, speed = 7.1, contactDamage = 25 },
+                },
             },
         },
     },
