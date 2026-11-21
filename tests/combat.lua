@@ -51,6 +51,16 @@ do
 end
 
 do
+    local enemy = target(1, 1, 100)
+    enemy.laneDirection = -1
+    local run = scene({ enemy })
+    run.player.y = -1
+    advance(Weapons.new("frost_pulse", forbidRandom), run, 1)
+    assert(enemy.health < 100 and enemy.x > 1 and enemy.y == 0,
+        "off-axis hits project their knockback onto the lane")
+end
+
+do
     local stats = data.ember_field.levels[1]
     local near = target(1, 7, 100)
     local late = target(2, 8, 100)

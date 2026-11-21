@@ -146,6 +146,7 @@ local function openBattle(state, run)
     hideMenu(state)
     active(state.world, true)
     visible(state.hud.control, true)
+    text(state.padText, run.stage.straight_lane and "左右拖动" or "拖动移动")
 end
 
 local function goHome(state)
@@ -376,11 +377,12 @@ local function pool(limit, behind)
     return { limit = limit, count = 0, last = 0, sprites = {}, behind = behind }
 end
 
-local function draw(state, pool, x, y, radius, tint)
-    local size = math.max(3, radius * 2 * state.worldScale)
+local function draw(state, pool, x, y, radius, tint, span)
+    local height = math.max(3, radius * 2 * state.worldScale)
+    local width = span and span * state.worldScale or height
     x = (x - state.run.player.x) * state.worldScale
     y = (y - state.run.player.y) * state.worldScale
-    if math.abs(x) > (state.width + size) / 2 or math.abs(y) > (state.height + size) / 2 then return end
+    if math.abs(x) > (state.width + width) / 2 or math.abs(y) > (state.height + height) / 2 then return end
     if pool.count == pool.limit then
         state.clipped = true
         return
@@ -397,9 +399,9 @@ local function draw(state, pool, x, y, radius, tint)
         sprite.control:SetAnchoredPosition(x, y)
         sprite.x, sprite.y = x, y
     end
-    if sprite.size ~= size then
-        sprite.control:SetSizeDelta(size, size)
-        sprite.size = size
+    if sprite.width ~= width or sprite.height ~= height then
+        sprite.control:SetSizeDelta(width, height)
+        sprite.width, sprite.height = width, height
     end
     if sprite.tint ~= tint then
         sprite.control.imageColor = state.palette[tint]
@@ -414,14 +416,20 @@ local function drawWorld(state)
     for _, items in pairs(p) do items.count = 0 end
     state.clipped = false
     local player = run.player
-    local grid = 8
     local halfX = state.width / (2 * state.worldScale)
-    local halfY = state.height / (2 * state.worldScale)
-    for x = grid * math.ceil((player.x - halfX) / grid), player.x + halfX, grid do
-        for y = grid * math.ceil((player.y - halfY) / grid), player.y + halfY, grid do
-            if x >= run.bounds.min_x and x <= run.bounds.max_x and
-                y >= run.bounds.min_y and y <= run.bounds.max_y then
-                draw(state, p.ground, x, y, 0.12, "ground")
+    if run.stage.straight_lane then
+        local left = math.max(run.bounds.min_x, player.x - halfX)
+        local right = math.min(run.bounds.max_x, player.x + halfX)
+        draw(state, p.ground, (left + right) / 2, 0, 0.15, "ground", right - left)
+    else
+        local grid = 8
+        local halfY = state.height / (2 * state.worldScale)
+        for x = grid * math.ceil((player.x - halfX) / grid), player.x + halfX, grid do
+            for y = grid * math.ceil((player.y - halfY) / grid), player.y + halfY, grid do
+                if x >= run.bounds.min_x and x <= run.bounds.max_x and
+                    y >= run.bounds.min_y and y <= run.bounds.max_y then
+                    draw(state, p.ground, x, y, 0.12, "ground")
+                end
             end
         end
     end

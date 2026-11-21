@@ -75,7 +75,9 @@ local function damage(system, attack, enemy, dx, dy, onKill)
     elseif attack.knockback > 0 then
         dx, dy = direction(dx, dy)
         enemy.x = enemy.x + dx * attack.knockback
-        enemy.y = enemy.y + dy * attack.knockback
+        if not enemy.laneDirection then
+            enemy.y = enemy.y + dy * attack.knockback
+        end
     end
 end
 

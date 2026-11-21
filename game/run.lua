@@ -213,7 +213,7 @@ local function newRun(seed, stage, weapon_id, base_stats, character, options)
     local function randomUnit()
         return Run.random(run)
     end
-    run.enemies = Enemies.new(stage.waves, randomUnit)
+    run.enemies = Enemies.new(stage.waves, randomUnit, stage.straight_lane)
     local starters = character and Characters.loadout(character, randomUnit) or { weapon_id or "wind_blade" }
     run.build = Build.new(randomUnit, WeaponData, starters, stage.build_rules, options and options.weapon_unlocks, mode.limit_break)
     run.weapon_systems = {}
@@ -467,7 +467,7 @@ function Run.update(run, seconds, move_x, move_y)
         or (run.perks and run.perks.choice) then
         return 0
     end
-    local x, y = movement(move_x, move_y)
+    local x, y = movement(move_x, run.stage.straight_lane and 0 or move_y)
     local accumulated = run.accumulator + math.min(seconds, MAX_FRAME_TIME)
     local steps = math.floor((accumulated + 1e-10) / STEP)
     run.accumulator = math.max(0, accumulated - steps * STEP)

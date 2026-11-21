@@ -23,7 +23,7 @@ local function validateType(kind)
     end
 end
 
-function Enemies.new(config, randomUnit)
+function Enemies.new(config, randomUnit, straightLane)
     assert(config.capacity >= 0 and config.capacity % 1 == 0, "enemy capacity must be a non-negative integer")
     assert(config.spawnDistance >= 0 and config.despawnDistance > config.spawnDistance, "invalid enemy spawn distances")
     assert(config.contactIntervalTicks >= 1 and config.contactIntervalTicks % 1 == 0, "invalid enemy contact interval")
@@ -42,6 +42,7 @@ function Enemies.new(config, randomUnit)
     return {
         config = config,
         randomUnit = randomUnit,
+        straightLane = straightLane,
         active = {},
         free = {},
         nextWave = 1,
@@ -81,7 +82,6 @@ local function spawn(system, player, kindId)
     local kind = system.config.types[kindId]
     local id = system.totalSpawned + 1
     local turn = system.randomUnit and system.randomUnit() or (id * 0.61803398875) % 1
-    local angle = fullTurn * turn
     local distance = system.config.spawnDistance
     local enemy = table.remove(system.free) or {}
     enemy.id = id
@@ -91,9 +91,17 @@ local function spawn(system, player, kindId)
     enemy.treasureKind = kind.treasure_kind
     enemy.controlImmune = kind.controlImmune == true
     enemy.slowFactor, enemy.slowUntilTick, enemy.slowReadyTick = nil, nil, nil
-    local spawnX = math.cos(angle) * distance
-    enemy.x = player.x + (system.config.mirrorHorizontal and -spawnX or spawnX)
-    enemy.y = player.y + math.sin(angle) * distance
+    local mirror = system.config.mirrorHorizontal and -1 or 1
+    if system.straightLane then
+        enemy.laneDirection = (turn < 0.5 and 1 or -1) * mirror
+        enemy.x = player.x - enemy.laneDirection * distance
+        enemy.y = 0
+    else
+        local angle = fullTurn * turn
+        enemy.laneDirection = nil
+        enemy.x = player.x + mirror * math.cos(angle) * distance
+        enemy.y = player.y + math.sin(angle) * distance
+    end
     enemy.radius = kind.radius
     enemy.speed = kind.speed
     enemy.health = kind.health * (system.config.enemyHealthMultiplier or 1) * system.pressure
@@ -186,14 +194,22 @@ local function stepEnemy(enemy, player, tick, dtSeconds, checkContact)
     updateFrenzy(enemy)
     local dx = player.x - enemy.x
     local dy = player.y - enemy.y
-    local distance = math.sqrt(dx * dx + dy * dy)
     local radius = player.radius + enemy.radius
+    local laneDirection = enemy.laneDirection
+    local distance = laneDirection and math.abs(dx) or math.sqrt(dx * dx + dy * dy)
     if enemy.charge then
-        local moveX, moveY = chargeMovement(enemy, tick, dx, dy, distance, dtSeconds)
+        local canAim = not laneDirection or dx * laneDirection > 0
+        local moveX, moveY = chargeMovement(enemy, tick, dx, laneDirection and 0 or dy,
+            canAim and distance or math.huge, dtSeconds)
         if moveX then
             enemy.x, enemy.y = enemy.x + moveX, enemy.y + moveY
             return checkContact and crossesPlayer(dx, dy, moveX, moveY, radius)
         end
+    end
+    if laneDirection then
+        local moveX = laneDirection * enemy.speed * dtSeconds
+        enemy.x = enemy.x + moveX
+        return checkContact and crossesPlayer(dx, dy, moveX, 0, radius)
     end
     local travel = math.min(distance, enemy.speed * dtSeconds)
     if distance > 0 then

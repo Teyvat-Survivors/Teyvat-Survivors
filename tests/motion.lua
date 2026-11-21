@@ -1,10 +1,11 @@
 local Run = require("game.run")
+local stages = require("data.stages")
 
 local function near(actual, expected)
     assert(math.abs(actual - expected) < 1e-9, tostring(actual) .. " expected " .. tostring(expected))
 end
 
-local first, second = Run.new(123), Run.new(123)
+local first, second = Run.new(123, stages.moon_reeds), Run.new(123, stages.moon_reeds)
 for frame = 1, 60 do
     local x, y = 1, -1
     if frame > 30 then x, y = 0.5, 0 end
@@ -30,12 +31,16 @@ assert(Run.update(first, 60, 0, 1) == 15 and first.tick == 75)
 assert(not pcall(Run.update, first, -0.1, 0, 0))
 assert(not pcall(Run.update, first, 0.1, math.huge, 0))
 
-local edge = Run.new()
-edge.player.x, edge.player.y = 95.99, -95.99
+local edge = Run.new(nil, stages.moon_reeds)
+edge.player.x, edge.player.y = 67.99, -38.99
 Run.update(edge, Run.step_seconds, 1e300, -1e300)
-assert(edge.player.x == 96 and edge.player.y == -96)
+assert(edge.player.x == 68 and edge.player.y == -39)
 local extreme = Run.new()
-Run.update(extreme, Run.step_seconds, math.mininteger, 0)
+Run.update(extreme, Run.step_seconds, math.mininteger, 1)
 near(extreme.player.x, -0.1)
+assert(extreme.player.y == 0 and extreme.player.facing_y == 0)
+Run.update(extreme, Run.step_seconds, 0, 1)
+near(extreme.player.x, -0.1)
+assert(extreme.player.y == 0 and extreme.player.facing_x == -1)
 assert(not pcall(Run.update, extreme, 0.1, false, 0))
 print("Fixed-step motion, seed, pause, and bounds passed")
