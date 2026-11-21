@@ -1,6 +1,5 @@
 local Data = require("data.progress")
 local Weapons = require("game.weapons")
-local WeaponData = require("data.weapons")
 
 local Progress = {}
 local MAX_LEVEL = #Data.experience_to_next + 1
@@ -46,8 +45,8 @@ local function offerChoice(system, run)
     end
 
     local options = {}
-    if run.weapons.level < #WeaponData.wind_blade.levels then
-        options[#options + 1] = { id = "weapon", label = "强化风刃" }
+    if run.weapons.level < Weapons.max_level(run.weapons) then
+        options[#options + 1] = { id = "weapon", label = "强化当前武器" }
     end
     if system.speedUpgrades < Data.max_speed_upgrades then
         options[#options + 1] = { id = "speed", label = "提升移速" }
