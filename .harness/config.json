@@ -24,7 +24,7 @@
   "profile": "github-backlog-v1",
   "repository": "Teyvat-Survivors/Teyvat-Survivors",
   "schema": 1,
-  "target": "main",
+  "target": "develop",
   "verification": {
     "commands": [
       [

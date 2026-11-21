@@ -11,7 +11,7 @@ on:
       - 'tests/**'
       - 'tools/bundle_gil.py'
   push:
-    branches: [main]
+    branches: [develop, main]
     paths:
       - '.github/workflows/windows-lua.yml'
       - 'data/**'

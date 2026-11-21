@@ -8,7 +8,7 @@
 
 在仓库根目录用 Lua 5.3 运行 `lua tests/run.lua`。核心模块不依赖桌面图形、输入或文件系统。千星采用受限的 Lua 5.3 环境，编辑器打包与 GIL 适配以 TS-5 的实际实验为准。
 
-OpenHarness 从干净工作区比对候选和目标分支。运行 `openharness --repo . verify --head HEAD --base origin/main`，需要 Lua 5.3、Node.js 和 Backlog.md 所需的 npm。
+日常开发 PR 合入 `develop`，发版和生产热修经 PR 合入 `main`。OpenHarness 从干净工作区验证开发候选，运行 `openharness --repo . verify --head HEAD --base origin/develop` 需要 Lua 5.3、Node.js 和 npm。
 
 ## Lua 单局
 
