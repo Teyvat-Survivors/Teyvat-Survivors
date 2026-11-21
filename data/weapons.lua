@@ -32,7 +32,7 @@ return {
         },
     },
     wind_blade = {
-        label = "风刃", weight = 18,
+        weight = 18,
         label = "风刃",
         behavior = "projectile",
         levels = {
@@ -42,7 +42,7 @@ return {
         },
     },
     frost_pulse = {
-        label = "霜环", weight = 14,
+        weight = 14,
         label = "霜脉冲",
         behavior = "pulse",
         levels = {
@@ -51,7 +51,7 @@ return {
         },
     },
     ember_field = {
-        label = "余烬阵", weight = 12,
+        weight = 12,
         label = "余烬领域",
         behavior = "field",
         levels = {
@@ -174,6 +174,162 @@ return {
                 duration_ticks = 1, interval_ticks = 1, max_hits_per_target = 1,
                 travel_distance = 3.6,
             },
+        },
+    },
+    mist_cut = {
+        label = "断雾斩", behavior = "pulse", weight = 12,
+        levels = {
+            { damage = 24, cooldown_ticks = 48, radius = 3, cone_cos = 0.55, knockback = 0.6 },
+            { damage = 32, cooldown_ticks = 44, radius = 3.5, cone_cos = 0.48, knockback = 0.8 },
+        },
+    },
+    sky_needle = {
+        label = "天星落", behavior = "field", aim = "random", weight = 9,
+        levels = {
+            {
+                damage = 26, cooldown_ticks = 115, range = 35, radius = 1.65, delay_ticks = 28,
+                duration_ticks = 1, interval_ticks = 1, max_hits_per_target = 1,
+            },
+            {
+                damage = 33, cooldown_ticks = 105, range = 39, radius = 2, delay_ticks = 22,
+                duration_ticks = 1, interval_ticks = 1, max_hits_per_target = 1,
+            },
+        },
+    },
+    cloud_scout = {
+        label = "游云引", behavior = "field", field_anchor = "roam", weight = 8,
+        levels = {
+            {
+                damage = 7, cooldown_ticks = 128, radius = 1.5, drift_per_tick = 0.26, turn_ticks = 29,
+                duration_ticks = 105, interval_ticks = 9, max_hits_per_target = 3,
+            },
+            {
+                damage = 10, cooldown_ticks = 120, radius = 1.8, drift_per_tick = 0.30, turn_ticks = 25,
+                duration_ticks = 110, interval_ticks = 8, max_hits_per_target = 4,
+            },
+        },
+    },
+    moon_tide = {
+        label = "逆月潮", behavior = "field", field_anchor = "orbit", weight = 8,
+        levels = {
+            {
+                damage = 13, cooldown_ticks = 126, radius = 1.1, orbit_phase = math.pi,
+                orbit_radius = 6, orbit_period_ticks = 96, delay_ticks = 12,
+                duration_ticks = 72, interval_ticks = 12, max_hits_per_target = 2,
+            },
+            {
+                damage = 18, cooldown_ticks = 118, radius = 1.3, orbit_phase = math.pi,
+                orbit_radius = 6.6, orbit_period_ticks = 84, delay_ticks = 9,
+                duration_ticks = 78, interval_ticks = 9, max_hits_per_target = 3,
+            },
+        },
+    },
+    prism_cross = {
+        label = "四象羽", behavior = "projectile", aim = "facing", radial = true, weight = 10,
+        levels = {
+            { damage = 9, cooldown_ticks = 69, range = 16, speed = 29, radius = 0.29, pierce = 1, shots = 4 },
+            { damage = 12, cooldown_ticks = 63, range = 19, speed = 33, radius = 0.32, pierce = 1, shots = 6 },
+        },
+    },
+    willow_twins = {
+        label = "双柳背刺", behavior = "projectile", aim = "behind", weight = 9,
+        levels = {
+            {
+                damage = 16, cooldown_ticks = 59, range = 13, speed = 36, radius = 0.36,
+                pierce = 1, shots = 2, angle_step = 0.68, knockback = 0.45,
+            },
+            {
+                damage = 22, cooldown_ticks = 55, range = 16, speed = 40, radius = 0.40,
+                pierce = 2, shots = 2, angle_step = 0.56, knockback = 0.7,
+            },
+        },
+    },
+    storm_lane = {
+        label = "风压长廊", behavior = "pulse", weight = 9,
+        levels = {
+            { damage = 20, cooldown_ticks = 86, radius = 8, line_half_width = 0.65, knockback = 1.2 },
+            { damage = 25, cooldown_ticks = 80, radius = 9.4, line_half_width = 0.95, knockback = 1.7 },
+        },
+    },
+    ember_breath = {
+        label = "熔羽风", behavior = "field", field_anchor = "player", weight = 10,
+        levels = {
+            {
+                damage = 6, cooldown_ticks = 87, radius = 5, cone_cos = 0.73,
+                duration_ticks = 24, interval_ticks = 6, max_hits_per_target = 4,
+            },
+            {
+                damage = 8, cooldown_ticks = 81, radius = 5.7, cone_cos = 0.66,
+                duration_ticks = 25, interval_ticks = 5, max_hits_per_target = 5,
+            },
+        },
+    },
+    trail_mine = {
+        label = "回尘雷", behavior = "field", field_anchor = "trap", weight = 9,
+        levels = {
+            {
+                damage = 27, cooldown_ticks = 39, radius = 2.2, rear_offset = 2.2, delay_ticks = 18,
+                duration_ticks = 1, interval_ticks = 1, max_hits_per_target = 1,
+                travel_distance = 5, release_when_stopped = true,
+            },
+            {
+                damage = 32, cooldown_ticks = 31, radius = 2.6, rear_offset = 2.6, delay_ticks = 14,
+                duration_ticks = 1, interval_ticks = 1, max_hits_per_target = 1,
+                travel_distance = 4.4, release_when_stopped = true,
+            },
+        },
+    },
+    pebble_chain = {
+        label = "岩雀折线", behavior = "projectile", motion = "ricochet", weight = 9,
+        levels = {
+            { damage = 11, cooldown_ticks = 66, range = 28, speed = 37, radius = 0.33, pierce = 2 },
+            { damage = 15, cooldown_ticks = 60, range = 34, speed = 43, radius = 0.38, pierce = 3 },
+        },
+    },
+    blossom_bomb = {
+        label = "绽烟花", behavior = "projectile", motion = "lob", weight = 8,
+        levels = {
+            {
+                damage = 17, cooldown_ticks = 82, range = 20, speed = 16, radius = 0.42, pierce = 0, apex = 2.8,
+                blast_chance = 0.50, blast_radius = 2.8, blast_multiplier = 0.75,
+            },
+            {
+                damage = 23, cooldown_ticks = 76, range = 23, speed = 19, radius = 0.46, pierce = 0, apex = 3.2,
+                blast_chance = 0.70, blast_radius = 3.4, blast_multiplier = 0.82,
+            },
+        },
+    },
+    last_stand = {
+        label = "赤岩决", behavior = "pulse", weight = 11,
+        levels = {
+            {
+                damage = 19, cooldown_ticks = 64, radius = 3.8,
+                low_health_fraction = 0.4, low_health_multiplier = 1.6,
+            },
+            {
+                damage = 24, cooldown_ticks = 60, radius = 4.4,
+                low_health_fraction = 0.45, low_health_multiplier = 1.75,
+            },
+        },
+    },
+    needle_ring = {
+        label = "碎辰针群", behavior = "projectile", aim = "random", weight = 9,
+        levels = {
+            {
+                damage = 8, cooldown_ticks = 72, range = 22, speed = 32, radius = 0.3,
+                pierce = 2, shots = 2, angle_step = 0.18,
+            },
+            {
+                damage = 12, cooldown_ticks = 65, range = 25, speed = 35, radius = 0.35,
+                pierce = 2, shots = 3, angle_step = 0.17,
+            },
+        },
+    },
+    horizon_shatter = {
+        label = "天际碎幕", behavior = "purge", weight = 4,
+        levels = {
+            { cooldown_ticks = 490, arena_wide = true, elite_damage = 25 },
+            { cooldown_ticks = 445, arena_wide = true, elite_damage = 34 },
         },
     },
 }

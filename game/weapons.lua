@@ -32,10 +32,10 @@ function Weapons.upgrade(system)
     return system.level
 end
 
-local function nearestEnemy(enemies, x, y, range)
+local function nearestEnemy(enemies, x, y, range, excluded)
     local best, limit = nil, range * range
     for _, enemy in ipairs(enemies) do
-        if enemy.health > 0 then
+        if enemy.health > 0 and (not excluded or not excluded[enemy.id]) then
             local dx, dy = enemy.x - x, enemy.y - y
             local distance = dx * dx + dy * dy
             if distance <= limit and (distance < limit or not best or enemy.id < best.id) then
@@ -52,6 +52,10 @@ local function direction(x, y)
         return x / length, y / length
     end
     return 1, 0
+end
+
+local function facing(player)
+    return direction(player.facing_x or 0, player.facing_y or 0)
 end
 
 local function damage(system, attack, enemy, dx, dy, onKill)
@@ -81,13 +85,25 @@ local function contactOrder(a, b)
     return a.distance < b.distance
 end
 
+local function inShape(attack, enemy, dx, dy, distance)
+    if not attack.forward_x then
+        return true
+    end
+    local forward = dx * attack.forward_x + dy * attack.forward_y
+    if attack.cone_cos then
+        return forward >= math.sqrt(distance) * attack.cone_cos
+    end
+    local perpendicular = dx * attack.forward_y - dy * attack.forward_x
+    return forward >= 0 and math.abs(perpendicular) <= attack.line_half_width + enemy.radius
+end
+
 local function pulse(system, attack, enemies, onKill)
     local contacts = {}
     for _, enemy in ipairs(enemies) do
         if enemy.health > 0 and (attack.hit_ids[enemy.id] or 0) < attack.max_hits_per_target then
             local dx, dy = enemy.x - attack.x, enemy.y - attack.y
             local distance = dx * dx + dy * dy
-            if distance <= (attack.radius + enemy.radius) ^ 2 then
+            if distance <= (attack.radius + enemy.radius) ^ 2 and inShape(attack, enemy, dx, dy, distance) then
                 contacts[#contacts + 1] = { enemy = enemy, distance = distance }
             end
         end
@@ -128,8 +144,11 @@ end
 local function launch(system, weapon, attack, stats, mod, player, target, range)
     local dx, dy = target.x - player.x, target.y - player.y
     local forwardX, forwardY
-    if weapon.aim == "facing" then
-        forwardX, forwardY = direction(player.facing_x or 0, player.facing_y or 0)
+    if weapon.aim == "facing" or weapon.aim == "behind" then
+        forwardX, forwardY = facing(player)
+        if weapon.aim == "behind" then
+            forwardX, forwardY = -forwardX, -forwardY
+        end
     else
         forwardX, forwardY = direction(dx, dy)
     end
@@ -147,7 +166,8 @@ local function launch(system, weapon, attack, stats, mod, player, target, range)
         projectile.hit_ids = {}
         projectile.dx, projectile.dy = forwardX, forwardY
         if count > 1 then
-            local offset = (shot - (count + 1) / 2) * stats.angle_step
+            local offset = weapon.radial and (shot - 1) * 2 * math.pi / count
+                or (shot - (count + 1) / 2) * stats.angle_step
             local c, si = math.cos(offset), math.sin(offset)
             projectile.dx = forwardX * c - forwardY * si
             projectile.dy = forwardX * si + forwardY * c
@@ -156,6 +176,11 @@ local function launch(system, weapon, attack, stats, mod, player, target, range)
         projectile.speed = stats.speed * (mod.projectile_speed or 1)
         projectile.remaining_distance = range
         projectile.remaining_hits = 1 + math.max(0, math.floor(stats.pierce + (mod.pierce or 0)))
+        if stats.blast_chance then
+            projectile.blast_chance = stats.blast_chance
+            projectile.blast_radius = stats.blast_radius * (mod.area or 1)
+            projectile.blast_multiplier = stats.blast_multiplier
+        end
         if weapon.motion == "lob" then
             projectile.remaining_distance = math.min(range, math.sqrt(dx * dx + dy * dy))
             projectile.initial_distance = projectile.remaining_distance
@@ -204,6 +229,14 @@ local function fire(system, run, enemies, onKill)
         crit_multiplier = stats.crit_multiplier or 1.5,
         knockback = (stats.knockback or 0) * (mod.knockback or 1),
     }
+    if stats.low_health_fraction and run.player.health <= run.player.max_health * stats.low_health_fraction then
+        attack.damage = attack.damage * stats.low_health_multiplier
+    end
+    if stats.cone_cos or stats.line_half_width then
+        attack.forward_x, attack.forward_y = facing(run.player)
+        attack.cone_cos = stats.cone_cos
+        attack.line_half_width = stats.line_half_width and stats.line_half_width * (mod.area or 1)
+    end
     if weapon.behavior == "projectile" then
         launch(system, weapon, attack, stats, mod, run.player, target, range)
     elseif weapon.behavior == "field" then
@@ -215,9 +248,18 @@ local function fire(system, run, enemies, onKill)
         attack.start_tick = run.tick
         attack.orbit_radius = stats.orbit_radius
         attack.orbit_period_ticks = stats.orbit_period_ticks
+        attack.orbit_phase = stats.orbit_phase or 0
+        if attack.anchor == "roam" then
+            attack.heading = 2 * math.pi * system.randomUnit()
+            attack.drift_per_tick = stats.drift_per_tick * (mod.projectile_speed or 1)
+            attack.turn_ticks = stats.turn_ticks
+        elseif stats.rear_offset then
+            local fx, fy = facing(run.player)
+            attack.x, attack.y = x - fx * stats.rear_offset, y - fy * stats.rear_offset
+        end
         attack.interval_ticks = stats.interval_ticks
-        attack.next_tick = run.tick
-        attack.expires_tick = run.tick + math.max(1, math.floor(stats.duration_ticks * (mod.duration or 1)))
+        attack.next_tick = run.tick + (stats.delay_ticks or 0)
+        attack.expires_tick = attack.next_tick + math.max(1, math.floor(stats.duration_ticks * (mod.duration or 1)))
         attack.max_hits_per_target = stats.max_hits_per_target
         system.fields[#system.fields + 1] = attack
     else
@@ -255,6 +297,22 @@ local function firstContact(projectile, enemy, travel)
     end
 end
 
+local function impactBlast(system, projectile, enemies, victim, x, y, onKill)
+    local chance = projectile.blast_chance
+    if not chance or projectile.blast_checked then
+        return
+    end
+    projectile.blast_checked = true
+    if system.randomUnit() < chance then
+        pulse(system, {
+            x = x, y = y, radius = projectile.blast_radius,
+            damage = projectile.damage * projectile.blast_multiplier,
+            crit_chance = 0, knockback = 0, max_hits_per_target = 1,
+            hit_ids = { [victim.id] = 1 },
+        }, enemies, onKill)
+    end
+end
+
 local function resolveHits(system, projectile, enemies, travel, onKill)
     local contacts = nil
     for _, enemy in ipairs(enemies) do
@@ -279,7 +337,12 @@ local function resolveHits(system, projectile, enemies, travel, onKill)
         if enemy.health > 0 and not projectile.hit_ids[enemy.id] then
             projectile.hit_ids[enemy.id] = true
             projectile.remaining_hits = projectile.remaining_hits - 1
+            local x, y = enemy.x, enemy.y
             damage(system, projectile, enemy, projectile.dx, projectile.dy, onKill)
+            impactBlast(system, projectile, enemies, enemy, x, y, onKill)
+            if projectile.motion == "ricochet" then
+                return contact.distance
+            end
             if projectile.remaining_hits == 0 then
                 return
             end
@@ -363,6 +426,23 @@ local function returnFlight(system, shot, enemies, budget, player, onKill)
     shot.remaining_distance = 0
 end
 
+local function ricochet(system, shot, enemies, travel, onKill)
+    while travel > 0 and shot.remaining_hits > 0 do
+        local contact = resolveHits(system, shot, enemies, travel, onKill)
+        move(shot, contact or travel)
+        if not contact or shot.remaining_hits == 0 or shot.remaining_distance == 0 then
+            return
+        end
+        local target = nearestEnemy(enemies, shot.x, shot.y, shot.remaining_distance, shot.hit_ids)
+        if not target then
+            shot.remaining_distance = 0
+            return
+        end
+        shot.dx, shot.dy = direction(target.x - shot.x, target.y - shot.y)
+        travel = travel - contact
+    end
+end
+
 local function stepProjectile(system, shot, run, enemies, dtSeconds, onKill)
     local budget = shot.speed * dtSeconds
     local travel = math.min(shot.remaining_distance, budget)
@@ -379,6 +459,8 @@ local function stepProjectile(system, shot, run, enemies, dtSeconds, onKill)
         rebound(system, shot, enemies, travel, run.bounds or defaultBounds, onKill)
     elseif shot.motion == "return" then
         returnFlight(system, shot, enemies, budget, run.player, onKill)
+    elseif shot.motion == "ricochet" then
+        ricochet(system, shot, enemies, travel, onKill)
     else
         fly(system, shot, enemies, travel, onKill)
     end
@@ -389,9 +471,14 @@ local function updateFieldCenter(field, player, tick)
         field.x, field.y = player.x, player.y
     elseif field.anchor == "orbit" then
         local age = tick - field.start_tick
-        local angle = 2 * math.pi * (age % field.orbit_period_ticks) / field.orbit_period_ticks
+        local angle = field.orbit_phase + 2 * math.pi * (age % field.orbit_period_ticks) / field.orbit_period_ticks
         field.x = player.x + field.orbit_radius * math.cos(angle)
         field.y = player.y + field.orbit_radius * math.sin(angle)
+    elseif field.anchor == "roam" and tick > field.start_tick then
+        local turns = math.floor((tick - field.start_tick) / field.turn_ticks)
+        local angle = field.heading + (turns % 4) * math.pi / 2
+        field.x = field.x + field.drift_per_tick * math.cos(angle)
+        field.y = field.y + field.drift_per_tick * math.sin(angle)
     end
 end
 
@@ -415,7 +502,7 @@ local function stepFields(system, run, enemies, onKill)
     end
 end
 
-local function readyFromTravel(system, player, threshold)
+local function readyFromTravel(system, player, threshold, releaseWhenStopped)
     if not threshold then
         return true
     end
@@ -426,15 +513,17 @@ local function readyFromTravel(system, player, threshold)
     end
     local dx, dy = player.x - travel.x, player.y - travel.y
     travel.x, travel.y = player.x, player.y
-    travel.distance = math.min(threshold, travel.distance + math.sqrt(dx * dx + dy * dy))
-    return travel.distance + 1e-9 >= threshold
+    local distance = math.sqrt(dx * dx + dy * dy)
+    travel.distance = math.min(threshold, travel.distance + distance)
+    return travel.distance + 1e-9 >= threshold and (not releaseWhenStopped or distance <= 1e-9)
 end
 
 -- Called once per simulation tick. Kill notifications precede enemy cleanup.
 function Weapons.step(system, run, dtSeconds, onKill)
     local enemies = run.enemies.active
-    local travelDistance = data[system.id].levels[system.level].travel_distance
-    if readyFromTravel(system, run.player, travelDistance) and run.tick >= system.next_fire_tick then
+    local stats = data[system.id].levels[system.level]
+    local travelDistance = stats.travel_distance
+    if readyFromTravel(system, run.player, travelDistance, stats.release_when_stopped) and run.tick >= system.next_fire_tick then
         if fire(system, run, enemies, onKill) and travelDistance then
             system.travel.distance = 0
         end
