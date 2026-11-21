@@ -36,7 +36,12 @@ dofile("tests/build.lua")
 dofile("tests/progress.lua")
 
 do
-    local run = Run.new(11)
+    local stage = {}
+    for key, value in pairs(require("data.stages").windward) do
+        stage[key] = value
+    end
+    stage.build_rules = { weapon_slots = 1, passive_slots = 0 }
+    local run = Run.new(11, stage)
     for id = 1, 2 do
         run.on_defeat({ id = id, x = run.player.x, y = run.player.y })
     end
@@ -85,5 +90,7 @@ do
     local treasure = Loot.defeat(run.loot, enemy)
     assert(treasure and treasure.kind == "treasure" and not Loot.defeat(run.loot, enemy))
 end
+
+dofile("tests/projectile_families.lua")
 
 dofile("tests/platform_probe.lua")

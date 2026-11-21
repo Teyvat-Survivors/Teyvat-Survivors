@@ -106,6 +106,69 @@ end
 
 local neutralModifiers = {}
 
+local function randomTarget(system, enemies, x, y, range)
+    local targets = {}
+    local limit = range * range
+    for _, enemy in ipairs(enemies) do
+        if enemy.health > 0 then
+            local dx, dy = enemy.x - x, enemy.y - y
+            if dx * dx + dy * dy <= limit then
+                targets[#targets + 1] = enemy
+            end
+        end
+    end
+    if #targets > 0 then
+        table.sort(targets, function(a, b) return a.id < b.id end)
+        local index = math.min(#targets, 1 + math.floor(system.randomUnit() * #targets))
+        return targets[index]
+    end
+end
+
+local function launch(system, weapon, attack, stats, mod, player, target, range)
+    local dx, dy = target.x - player.x, target.y - player.y
+    local forwardX, forwardY
+    if weapon.aim == "facing" then
+        forwardX, forwardY = direction(player.facing_x or 0, player.facing_y or 0)
+    else
+        forwardX, forwardY = direction(dx, dy)
+    end
+
+    local count = stats.shots or 1
+    local projectiles = system.projectiles
+    for shot = 1, count do
+        local projectile = attack
+        if count > 1 then
+            projectile = {}
+            for key, value in pairs(attack) do
+                projectile[key] = value
+            end
+        end
+        projectile.hit_ids = {}
+        projectile.dx, projectile.dy = forwardX, forwardY
+        if count > 1 then
+            local offset = (shot - (count + 1) / 2) * stats.angle_step
+            local c, si = math.cos(offset), math.sin(offset)
+            projectile.dx = forwardX * c - forwardY * si
+            projectile.dy = forwardX * si + forwardY * c
+        end
+        projectile.motion = weapon.motion
+        projectile.speed = stats.speed * (mod.projectile_speed or 1)
+        projectile.remaining_distance = range
+        projectile.remaining_hits = 1 + math.max(0, math.floor(stats.pierce + (mod.pierce or 0)))
+        if weapon.motion == "lob" then
+            projectile.remaining_distance = math.min(range, math.sqrt(dx * dx + dy * dy))
+            projectile.initial_distance = projectile.remaining_distance
+            projectile.apex = stats.apex
+            projectile.height = 0
+        elseif weapon.motion == "rebound" then
+            projectile.remaining_bounces = stats.bounces
+        elseif weapon.motion == "return" then
+            projectile.return_distance = range * stats.return_ratio
+        end
+        projectiles[#projectiles + 1] = projectile
+    end
+end
+
 local function fire(system, run, enemies, onKill)
     local weapon = data[system.id]
     local stats = weapon.levels[system.level]
@@ -114,7 +177,11 @@ local function fire(system, run, enemies, onKill)
     local range = (stats.range or 0) * (mod.range or 1)
     local target
     if weapon.behavior ~= "pulse" then
-        target = nearestEnemy(enemies, x, y, range)
+        if weapon.aim == "random" then
+            target = randomTarget(system, enemies, x, y, range)
+        else
+            target = nearestEnemy(enemies, x, y, range)
+        end
         if not target then
             return
         end
@@ -127,16 +194,11 @@ local function fire(system, run, enemies, onKill)
         crit_chance = math.max(0, math.min(1, (stats.crit_chance or 0) + (mod.crit_chance or 0))),
         crit_multiplier = stats.crit_multiplier or 1.5,
         knockback = (stats.knockback or 0) * (mod.knockback or 1),
-        hit_ids = {},
     }
     if weapon.behavior == "projectile" then
-        attack.dx, attack.dy = direction(target.x - x, target.y - y)
-        attack.speed = stats.speed * (mod.projectile_speed or 1)
-        attack.remaining_distance = range
-        attack.remaining_hits = 1 + math.max(0, math.floor(stats.pierce + (mod.pierce or 0)))
-        local projectiles = system.projectiles
-        projectiles[#projectiles + 1] = attack
+        launch(system, weapon, attack, stats, mod, run.player, target, range)
     elseif weapon.behavior == "field" then
+        attack.hit_ids = {}
         attack.x, attack.y = target.x, target.y
         attack.interval_ticks = stats.interval_ticks
         attack.next_tick = run.tick
@@ -144,6 +206,7 @@ local function fire(system, run, enemies, onKill)
         attack.max_hits_per_target = stats.max_hits_per_target
         system.fields[#system.fields + 1] = attack
     else
+        attack.hit_ids = {}
         attack.max_hits_per_target = 1
         if not pulse(system, attack, enemies, onKill) then
             return
@@ -208,6 +271,103 @@ local function resolveHits(system, projectile, enemies, travel, onKill)
     end
 end
 
+local function move(shot, distance)
+    shot.x = shot.x + shot.dx * distance
+    shot.y = shot.y + shot.dy * distance
+    shot.remaining_distance = shot.remaining_distance - distance
+    if shot.remaining_distance < 1e-9 then
+        shot.remaining_distance = 0
+    end
+end
+
+local function fly(system, shot, enemies, distance, onKill)
+    resolveHits(system, shot, enemies, distance, onKill)
+    move(shot, distance)
+end
+
+local defaultBounds = { min_x = -96, max_x = 96, min_y = -96, max_y = 96 }
+
+local function edgeDistance(position, axis, minimum, maximum)
+    if axis == 0 then
+        return math.huge
+    end
+    return math.max(0, ((axis > 0 and maximum or minimum) - position) / axis)
+end
+
+local function rebound(system, shot, enemies, distance, bounds, onKill)
+    while distance > 0 and shot.remaining_hits > 0 do
+        local xDistance = edgeDistance(shot.x, shot.dx, bounds.min_x, bounds.max_x)
+        local yDistance = edgeDistance(shot.y, shot.dy, bounds.min_y, bounds.max_y)
+        local edge = math.min(xDistance, yDistance)
+        if edge > distance then
+            fly(system, shot, enemies, distance, onKill)
+            return
+        end
+
+        fly(system, shot, enemies, edge, onKill)
+        distance = distance - edge
+        if shot.remaining_bounces == 0 then
+            shot.remaining_distance = 0
+            return
+        end
+        shot.remaining_bounces = shot.remaining_bounces - 1
+        if math.abs(xDistance - edge) <= 1e-9 then
+            shot.dx = -shot.dx
+        end
+        if math.abs(yDistance - edge) <= 1e-9 then
+            shot.dy = -shot.dy
+        end
+    end
+end
+
+local function returnFlight(system, shot, enemies, budget, player, onKill)
+    if not shot.returning then
+        local outbound = math.min(budget, shot.remaining_distance)
+        fly(system, shot, enemies, outbound, onKill)
+        if shot.remaining_distance > 0 or shot.remaining_hits == 0 then
+            return
+        end
+        shot.returning = true
+        shot.remaining_distance = shot.return_distance
+        budget = budget - outbound
+    end
+
+    local x, y = player.x - shot.x, player.y - shot.y
+    local distance = math.sqrt(x * x + y * y)
+    if distance > 0 then
+        shot.dx, shot.dy = x / distance, y / distance
+        local travel = math.min(budget, shot.remaining_distance, distance)
+        if travel > 0 then
+            fly(system, shot, enemies, travel, onKill)
+        end
+        if travel < distance then
+            return
+        end
+    end
+    shot.remaining_distance = 0
+end
+
+local function stepProjectile(system, shot, run, enemies, dtSeconds, onKill)
+    local budget = shot.speed * dtSeconds
+    local travel = math.min(shot.remaining_distance, budget)
+    if shot.motion == "lob" then
+        move(shot, travel)
+        if shot.remaining_distance == 0 then
+            shot.height = 0
+            resolveHits(system, shot, enemies, 0, onKill)
+        else
+            local progress = 1 - shot.remaining_distance / shot.initial_distance
+            shot.height = 4 * shot.apex * progress * (1 - progress)
+        end
+    elseif shot.motion == "rebound" then
+        rebound(system, shot, enemies, travel, run.bounds or defaultBounds, onKill)
+    elseif shot.motion == "return" then
+        returnFlight(system, shot, enemies, budget, run.player, onKill)
+    else
+        fly(system, shot, enemies, travel, onKill)
+    end
+end
+
 local function stepFields(system, tick, enemies, onKill)
     local fields = system.fields
     local retained = 0
@@ -240,12 +400,8 @@ function Weapons.step(system, run, dtSeconds, onKill)
     local alive = 0
     for i = 1, count do
         local projectile = projectiles[i]
-        local travel = math.min(projectile.remaining_distance, projectile.speed * dtSeconds)
-        resolveHits(system, projectile, enemies, travel, onKill)
-        projectile.remaining_distance = projectile.remaining_distance - travel
+        stepProjectile(system, projectile, run, enemies, dtSeconds, onKill)
         if projectile.remaining_distance > 0 and projectile.remaining_hits > 0 then
-            projectile.x = projectile.x + projectile.dx * travel
-            projectile.y = projectile.y + projectile.dy * travel
             alive = alive + 1
             projectiles[alive] = projectile
         end
