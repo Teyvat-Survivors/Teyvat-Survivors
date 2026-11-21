@@ -11,7 +11,7 @@ local Run = {}
 
 local STEP = 1 / 60
 local MAX_FRAME_TIME = 0.25
-local WORLD_EDGE = 96
+local DEFAULT_BOUNDS = { min_x = -96, max_x = 96, min_y = -96, max_y = 96 }
 local SEED_MODULUS = 2147483647
 
 Run.step_seconds = STEP
@@ -20,8 +20,55 @@ local function finite(value)
     return type(value) == "number" and value > -math.huge and value < math.huge
 end
 
-local function constrain(value)
-    return math.max(-WORLD_EDGE, math.min(WORLD_EDGE, value))
+local function constrain(value, minimum, maximum)
+    return math.max(minimum, math.min(maximum, value))
+end
+
+local function stageBounds(bounds)
+    bounds = bounds or DEFAULT_BOUNDS
+    assert(finite(bounds.min_x) and finite(bounds.max_x) and bounds.min_x < bounds.max_x and
+        finite(bounds.min_y) and finite(bounds.max_y) and bounds.min_y < bounds.max_y, "invalid stage bounds")
+    return { min_x = bounds.min_x, max_x = bounds.max_x, min_y = bounds.min_y, max_y = bounds.max_y }
+end
+
+local function stageFeatures(definitions)
+    local features = {}
+    for i, definition in ipairs(definitions or {}) do
+        assert(finite(definition.x) and finite(definition.y) and finite(definition.radius) and
+            definition.radius > 0 and finite(definition.amount) and definition.amount > 0, "invalid stage feature")
+        if definition.kind == "hazard" then
+            assert(finite(definition.first_tick) and definition.first_tick >= 1 and definition.first_tick % 1 == 0 and
+                finite(definition.interval_ticks) and definition.interval_ticks >= 1 and
+                definition.interval_ticks % 1 == 0, "invalid stage hazard timing")
+        else
+            assert(definition.kind == "healing", "unknown stage feature")
+        end
+        features[i] = { definition = definition, spent = false, next_tick = definition.first_tick }
+    end
+    return features
+end
+
+local function stepStageFeatures(run)
+    local player = run.player
+    for _, feature in ipairs(run.stage_features) do
+        local definition = feature.definition
+        local due = definition.kind == "hazard" and run.tick == feature.next_tick
+        if due then
+            feature.next_tick = run.tick + definition.interval_ticks
+        end
+        if due or (definition.kind == "healing" and not feature.spent and player.health < player.max_health) then
+            local x, y = player.x - definition.x, player.y - definition.y
+            if x * x + y * y <= (player.radius + definition.radius) ^ 2 then
+                if due then
+                    player.health = math.max(0, player.health - definition.amount)
+                    if player.health == 0 then return end
+                else
+                    player.health = math.min(player.max_health, player.health + definition.amount)
+                    feature.spent = true
+                end
+            end
+        end
+    end
 end
 
 local function movement(x, y)
@@ -78,6 +125,7 @@ function Run.new(seed, stage, weapon_id, profile_stats)
     assert(stage.terminal_timeout_ticks >= 1 and stage.terminal_timeout_ticks % 1 == 0, "invalid finale duration")
     assert(stage.waves.capacity > 0 and stage.waves.types[stage.terminal_kind], "invalid finale enemy")
     local base = copyBaseStats(profile_stats)
+    local bounds = stageBounds(stage.bounds)
     local run = {
         base_stats = base,
         stage = stage,
@@ -88,9 +136,12 @@ function Run.new(seed, stage, weapon_id, profile_stats)
         accumulator = 0,
         paused = false,
         events = {},
-        bounds = { min_x = -WORLD_EDGE, max_x = WORLD_EDGE, min_y = -WORLD_EDGE, max_y = WORLD_EDGE },
+        bounds = bounds,
+        stage_features = stageFeatures(stage.features),
         player = {
-            x = 0, y = 0, radius = 0.42, speed = base.speed, armor = 0,
+            x = constrain(0, bounds.min_x, bounds.max_x),
+            y = constrain(0, bounds.min_y, bounds.max_y),
+            radius = 0.42, speed = base.speed, armor = 0,
             facing_x = 1, facing_y = 0,
             health = base.max_health, max_health = base.max_health,
         },
@@ -249,8 +300,14 @@ function Run.update(run, seconds, move_x, move_y)
         if x ~= 0 or y ~= 0 then
             player.facing_x, player.facing_y = x, y
         end
-        player.x = constrain(player.x + x * player.speed * STEP)
-        player.y = constrain(player.y + y * player.speed * STEP)
+        local bounds = run.bounds
+        player.x = constrain(player.x + x * player.speed * STEP, bounds.min_x, bounds.max_x)
+        player.y = constrain(player.y + y * player.speed * STEP, bounds.min_y, bounds.max_y)
+        stepStageFeatures(run)
+        if player.health == 0 then
+            finish(run, "defeated")
+            return completed
+        end
         if run.tick == run.stage.duration_ticks then
             local terminal = Enemies.begin_finale(run.enemies, player, run.stage.terminal_kind)
             run.terminal_id = terminal.id
