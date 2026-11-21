@@ -202,16 +202,25 @@ if bundle then
     OnUpdate(0.25)
     root.keys.KeyboardMoveRightKeyUp()
     local enemyColor = Color.FromRGBA(229, 107, 94, 255)
-    local enemies = 0
+    local groundColor = Color.FromRGBA(108, 146, 152, 150)
+    local enemies, lanes = 0, 0
     for _, node in ipairs(world.instances) do
-        if node.visible and node.imageColor == enemyColor then enemies = enemies + 1 end
+        if node.visible and node.imageColor == enemyColor then
+            enemies = enemies + 1
+            assert(node.y == 0, "default stage enemies render on the center line")
+        elseif node.visible and node.imageColor == groundColor then
+            lanes = lanes + 1
+            assert(node.y == 0 and node.width > sWidth * 0.9 and node.height <= 8,
+                "ground is a single horizontal line across the viewport")
+        end
     end
     assert(enemies > 0, "packaged Lua renders scheduled combat enemies")
+    assert(lanes == 1, "packaged Lua draws one lane")
     OnDisable()
     OnDestroy()
     for _, node in ipairs(rendered) do assert(not node.alive) end
     restore()
-    print("Miliastra bundled script initialized the real stage and rendered scheduled combat")
+    print("Miliastra bundled script rendered the real straight lane and its scheduled enemies")
     return
 end
 assert(live and live.tick == 0 and world.active)
@@ -294,6 +303,19 @@ local oldRun = live
 OnUpdate(0)
 action("再来一局")
 assert(live ~= oldRun and live.tick == 0 and not live.result and world.active)
+live.stage.straight_lane = true
+live.player.x = live.bounds.max_x
+live.enemies.active[1] = { x = live.player.x + 10, y = 0, radius = 0.5 }
+OnUpdate(0)
+local laneColor = Color.FromRGBA(108, 146, 152, 150)
+local laneVisible = false
+for _, node in ipairs(world.instances) do
+    if node.visible and node.imageColor == laneColor then
+        assert(node.y == 0 and node.width > sWidth * 0.9)
+        laneVisible = true
+    end
+end
+assert(laneVisible, "the straight lane covers visible enemy entrances beyond the player limit")
 OnDisable()
 assert(not script.updating and not playing and next(root.keys) == nil and next(touch.cursors) == nil)
 OnEnable()

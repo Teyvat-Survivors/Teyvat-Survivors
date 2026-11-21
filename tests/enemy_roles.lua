@@ -108,6 +108,43 @@ do
 end
 
 do
+    local config = testConfig({
+        { tick = 1, kind = "drift", count = 1 },
+        { tick = 1, kind = "ram", count = 1 },
+    }, {
+        drift = waves.types.drift,
+        ram = {
+            radius = 0.8, speed = 3, health = 14, contactDamage = 13,
+            charge = { range = 10, speed = 300, windupTicks = 2, chargeTicks = 2, cooldownTicks = 3 },
+        },
+    })
+    local turns = { 0.25, 0.75, 0.25 }
+    local system = Enemies.new(config, function() return table.remove(turns, 1) end, true)
+    local run = newRun()
+    run.player.y = 0.4
+    step(system, run, 1)
+    local drift, ram = system.active[1], system.active[2]
+    assert(drift.x < 0 and drift.y == 0 and drift.laneDirection == 1)
+    assert(ram.x == 3 and ram.y == 0 and ram.laneDirection == -1 and ram.motion == "windup")
+    run.player.y = -0.4
+    step(system, run, 3)
+    assert(ram.x == -2 and ram.y == 0 and ram.motion == "charging")
+    assert(run.player.health == 87, "crossing the player still inflicts contact damage")
+    step(system, run, 4)
+    run.player.x = -4
+    local before = drift.x
+    local ramBefore = ram.x
+    step(system, run, 5)
+    assert(drift.x > before and drift.y == 0 and ram.x < ramBefore and ram.y == 0,
+        "ordinary and charging enemies keep their direction when crossed")
+    local boss = Enemies.begin_finale(system, run.player, "drift")
+    before = boss.x
+    run.player.x = before - 1
+    step(system, run, 6)
+    assert(boss.isTerminal and boss.x > before and boss.y == 0)
+end
+
+do
     local stage = stages.windward
     local seen = {}
     for _, wave in ipairs(stage.waves.spawns) do
@@ -115,7 +152,7 @@ do
     end
     assert(seen.gale_runner == 50 * 60 and seen.ember_ram == 100 * 60)
     assert(stage.waves.types.ember_ram.elite and stage.waves.types.tempest.frenzy)
-    assert(stage.duration_ticks == 108000)
+    assert(stage.duration_ticks == 108000 and stage.straight_lane)
 end
 
 print("Lua runner, elite charge and cooldown, swept contact, pooled reset and finale phase passed")
