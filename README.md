@@ -15,3 +15,7 @@ OpenHarness 从干净工作区比对候选和目标分支。运行 `openharness 
 `game.run` 的 `Run.new(seed)` 启动风径试炼。`Run.update(run, dt, x, y)` 接收秒单位帧时和移动方向，通过固定步长推进战斗。升级时读取 `run.progress.choices`，把当次令牌和选项交给 `Run.choose`。终局结果写入 `run.result`，`Run.restart(run)` 重开。
 
 `lua tests/run.lua` 包含固定种子加速 30 分钟的完整模拟。`lua tools/benchmark.lua` 比较 100、300、600 实例的 Lua 负载。千星原生控件探针和编辑器操作见 [千星 2D 验证](docs/platform-probe.md)，当前等待 PC 和移动端原生验收。
+
+## 千星客户端接入
+
+运行 `python3 tools/bundle_gil.py /path/to/teyvat-survivors.lua` 生成单文件映射脚本。按 [千星战斗接入](docs/gil-playtest.md) 搭建编辑器画布与模板。离线替身覆盖菜单、选关、选角、战斗、升级、结算和重开。正式设备验收记录由 TS-5、TS-11 至 TS-13 更新。

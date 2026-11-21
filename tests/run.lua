@@ -185,4 +185,6 @@ do
     assert(Run.update(run, Run.step_seconds / 2) == 1)
 end
 
+dofile("tests/gil_client.lua")
+
 dofile("tests/platform_probe.lua")
