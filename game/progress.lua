@@ -99,7 +99,11 @@ function Progress.step(system, run, dt)
         pickups[i] = nil
     end
     if gained > 0 then
-        gainExperience(system, run, gained * run.weapon_modifiers.experience)
+        if run.perk_event then run.perk_event("experience", nil, { amount = gained }) end
+        local experience = gained * run.weapon_modifiers.experience
+        if experience > 0 and not run.result then
+            gainExperience(system, run, experience)
+        end
     end
 end
 
