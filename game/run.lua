@@ -50,7 +50,7 @@ local function finish(run, outcome)
     end
 end
 
-function Run.new(seed, stage)
+function Run.new(seed, stage, weapon_id)
     if seed == nil then
         seed = 1
     end
@@ -76,7 +76,9 @@ function Run.new(seed, stage)
     run.enemies = Enemies.new(stage.waves, function()
         return Run.random(run)
     end)
-    run.weapons = Weapons.new()
+    run.weapons = Weapons.new(weapon_id, function()
+        return Run.random(run)
+    end)
     run.progress = Progress.new(function()
         return Run.random(run)
     end)
@@ -92,7 +94,8 @@ function Run.new(seed, stage)
 end
 
 function Run.restart(run, seed)
-    return Run.new(seed or run.seed, run.stage)
+    if seed == nil then seed = run.seed end
+    return Run.new(seed, run.stage, run.weapons.id)
 end
 
 function Run.choose(run, token, option)

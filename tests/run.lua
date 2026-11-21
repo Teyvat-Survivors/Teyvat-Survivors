@@ -51,4 +51,26 @@ end
 
 dofile("tests/round.lua")
 
+dofile("tests/combat.lua")
+
+do
+    local enemy = { health = 10, radius = 0.4, speed = 0, contactDamage = 0 }
+    local stage = {
+        id = "pulse",
+        duration_ticks = 180,
+        terminal_kind = "target",
+        terminal_timeout_ticks = 10,
+        waves = {
+            capacity = 8, spawnDistance = 2, despawnDistance = 20, contactIntervalTicks = 30,
+            spawns = { { tick = 1, kind = "target", count = 1 } },
+            types = { target = enemy },
+        },
+    }
+    local pulse = Run.new(9, stage, "frost_pulse")
+    Run.update(pulse, Run.step_seconds)
+    assert(pulse.kills == 1 and #pulse.enemies.active == 0, "selected area weapon uses the normal Run attack lifecycle")
+    assert(Run.restart(pulse).weapons.id == "frost_pulse")
+    assert(not pcall(Run.restart, pulse, false))
+end
+
 dofile("tests/platform_probe.lua")
