@@ -189,4 +189,6 @@ dofile("tests/gil_client.lua")
 
 dofile("tests/modes.lua")
 
+dofile("tests/journal.lua")
+
 dofile("tests/platform_probe.lua")

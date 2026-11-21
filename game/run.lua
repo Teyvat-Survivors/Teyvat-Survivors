@@ -7,6 +7,7 @@ local Build = require("game.build")
 local Characters = require("game.characters")
 local Modes = require("game.modes")
 local WeaponData = require("data.weapons")
+local Recipes = require("data.evolutions")
 local stages = require("data.stages")
 local baseStats = require("data.powerups").base_stats
 
@@ -104,12 +105,28 @@ local function emit(run, kind)
     run.events[#run.events + 1] = { kind = kind, tick = run.tick }
 end
 
+local function discoveredWeapons(run)
+    local weapons = {}
+    for id in pairs(run.build.weapons) do
+        weapons[id] = true
+    end
+    for _, recipe in ipairs(Recipes) do
+        if run.evolutions[recipe.id] then
+            for _, id in ipairs(recipe.weapons) do
+                weapons[id] = true
+            end
+        end
+    end
+    return weapons
+end
+
 local function finish(run, outcome)
     if not run.result then
         run.result = {
             outcome = outcome,
             stage = run.stage.id,
             character = run.character_id,
+            weapons = discoveredWeapons(run),
             tick = run.tick,
             kills = run.kills,
             level = run.progress.level,
