@@ -77,6 +77,7 @@ local function collect(system, run, item)
     local player = run.player
     if item.kind == "coin" then
         system.coins = system.coins + Data.coin_value
+        if run.perk_event then run.perk_event("pickup", "coin") end
     elseif item.kind == "healing" then
         local multiplier = math.max(0, player.healing_multiplier or 1)
         player.health = math.min(player.max_health, player.health + Data.healing_value * multiplier)

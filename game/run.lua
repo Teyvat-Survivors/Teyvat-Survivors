@@ -1,6 +1,7 @@
 local Enemies = require("game.enemies")
 local Weapons = require("game.weapons")
 local Progress = require("game.progress")
+local Perks = require("game.perks")
 local Loot = require("game.loot")
 local Build = require("game.build")
 local Characters = require("game.characters")
@@ -131,7 +132,7 @@ local function projectStats(run)
     player.health = math.max(0, math.min(maxHealth, player.health + maxHealth - player.max_health))
     player.max_health = maxHealth
     stats.damage = stats.damage * base.damage_multiplier
-    run.weapon_modifiers = stats
+    run.base_weapon_modifiers, run.weapon_modifiers = stats, stats
 end
 
 local function newRun(seed, stage, weapon_id, base_stats, character)
@@ -197,6 +198,7 @@ local function newRun(seed, stage, weapon_id, base_stats, character)
         else
             Progress.drop(run.progress, enemy)
             Loot.defeat(run.loot, enemy, run.tick)
+            if run.perk_event then run.perk_event("kill") end
         end
     end
     return run
@@ -216,7 +218,15 @@ end
 
 function Run.restart(run, seed)
     if seed == nil then seed = run.seed end
-    return newRun(seed, run.stage, run.starting_weapon_id, run.base_stats, run.character)
+    local fresh = newRun(seed, run.stage, run.starting_weapon_id, run.base_stats, run.character)
+    if run.perks then
+        Run.enable_perks(fresh, {
+            unlocked = run.perks.unlocked,
+            max_owned = run.perks.maxOwned,
+            choice_count = run.perks.choiceCount,
+        })
+    end
+    return fresh
 end
 
 local function applyWeaponRank(run, id, rank)
@@ -286,14 +296,57 @@ function Run.banish(run, token, option)
     return true
 end
 
+function Run.enable_perks(run, options)
+    if run.tick ~= 0 or run.perks then return false end
+    run.perks = Perks.new(function() return Run.random(run) end, options)
+    run.perk_stats = {}
+    run.perk_event = function(kind, item)
+        local actions = Perks.handle(run.perks, { kind = kind, item = item, tick = run.tick })
+        for _, action in ipairs(actions or {}) do
+            local player = run.player
+            if action.kind == "heal" and player.health > 0 then
+                player.health = math.min(player.max_health, player.health + action.amount)
+            elseif action.kind == "revive" and player.health == 0 then
+                player.health = player.max_health * action.health_fraction
+                emit(run, "revived")
+            end
+        end
+    end
+    Perks.offer(run.perks, "opening")
+    return true
+end
+
+function Run.choose_perk(run, token, card_id)
+    return not run.result and run.perks ~= nil and Perks.choose(run.perks, token, card_id, run.tick)
+end
+
+function Run.skip_perk(run, token)
+    return not run.result and run.perks ~= nil and Perks.skip(run.perks, token)
+end
+
 function Run.choose_treasure(run, token, option)
+    local choice = run.loot.choices
     if run.result or not Loot.choose(run.loot, run, token, option) then
         return false
     end
     if option == "upgrade" then
         run.build.weapons[run.weapons.id] = run.weapons.level
     end
+    if run.perks and choice.chest.chest_type == "perk" then
+        Perks.offer(run.perks, "chest", choice.chest.enemyId)
+    end
     return true
+end
+
+local function settleDefeat(run)
+    if run.player.health == 0 then
+        if run.perk_event then run.perk_event("lethal") end
+        if run.player.health == 0 then
+            finish(run, "defeated")
+            return true
+        end
+    end
+    return false
 end
 
 function Run.random(run)
@@ -320,7 +373,8 @@ function Run.update(run, seconds, move_x, move_y)
     if move_y == nil then move_y = 0 end
     assert(finite(seconds) and seconds >= 0, "frame time must be finite and nonnegative")
     assert(finite(move_x) and finite(move_y), "movement must be finite")
-    if run.result or run.paused or Progress.hasChoice(run.progress) or Loot.hasChoice(run.loot) then
+    if run.result or run.paused or Progress.hasChoice(run.progress) or Loot.hasChoice(run.loot)
+        or (run.perks and run.perks.choice) then
         return 0
     end
     local x, y = movement(move_x, move_y)
@@ -337,8 +391,7 @@ function Run.update(run, seconds, move_x, move_y)
         player.x = constrain(player.x + x * player.speed * STEP, bounds.min_x, bounds.max_x)
         player.y = constrain(player.y + y * player.speed * STEP, bounds.min_y, bounds.max_y)
         stepStageFeatures(run)
-        if player.health == 0 then
-            finish(run, "defeated")
+        if settleDefeat(run) then
             return completed
         end
         if run.tick == run.stage.duration_ticks then
@@ -347,9 +400,12 @@ function Run.update(run, seconds, move_x, move_y)
             emit(run, "finale_started")
         end
         Enemies.step(run.enemies, run, STEP)
-        if player.health == 0 then
-            finish(run, "defeated")
+        if settleDefeat(run) then
             return completed
+        end
+        if run.perks then
+            run.weapon_modifiers = Perks.stats(
+                run.perks, run.base_weapon_modifiers, run.tick, x ~= 0 or y ~= 0, run.perk_stats)
         end
         for _, weapon in ipairs(run.weapon_systems) do
             Weapons.step(weapon, run, STEP, run.on_defeat)
