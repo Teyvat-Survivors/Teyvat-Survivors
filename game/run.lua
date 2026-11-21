@@ -1,5 +1,6 @@
 local Enemies = require("game.enemies")
 local Weapons = require("game.weapons")
+local Progress = require("game.progress")
 local waves = require("data.waves")
 
 local Run = {}
@@ -53,7 +54,17 @@ function Run.new(seed)
         return Run.random(run)
     end)
     run.weapons = Weapons.new()
+    run.progress = Progress.new(function()
+        return Run.random(run)
+    end)
+    run.on_defeat = function(enemy)
+        Progress.drop(run.progress, enemy)
+    end
     return run
+end
+
+function Run.choose(run, token, option)
+    return Progress.choose(run.progress, run, token, option)
 end
 
 function Run.random(run)
@@ -80,21 +91,26 @@ function Run.update(run, seconds, move_x, move_y)
     if move_y == nil then move_y = 0 end
     assert(finite(seconds) and seconds >= 0, "frame time must be finite and nonnegative")
     assert(finite(move_x) and finite(move_y), "movement must be finite")
-    if run.paused then
+    if run.paused or Progress.hasChoice(run.progress) then
         return 0
     end
     local x, y = movement(move_x, move_y)
     local accumulated = run.accumulator + math.min(seconds, MAX_FRAME_TIME)
     local steps = math.floor((accumulated + 1e-10) / STEP)
     run.accumulator = math.max(0, accumulated - steps * STEP)
-    for _ = 1, steps do
+    for completed = 1, steps do
         run.tick = run.tick + 1
         local player = run.player
         player.x = constrain(player.x + x * player.speed * STEP)
         player.y = constrain(player.y + y * player.speed * STEP)
         Enemies.step(run.enemies, run, STEP)
-        Weapons.step(run.weapons, run, STEP)
+        Weapons.step(run.weapons, run, STEP, run.on_defeat)
         Enemies.compact(run.enemies)
+        Progress.step(run.progress, run, STEP)
+        if Progress.hasChoice(run.progress) then
+            run.accumulator = 0
+            return completed
+        end
     end
     return steps
 end

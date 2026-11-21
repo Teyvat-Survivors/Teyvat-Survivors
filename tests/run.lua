@@ -32,5 +32,21 @@ do
         assert(enemy.id == other.id and enemy.health == other.health and enemy.x == other.x and enemy.y == other.y)
     end
 end
+dofile("tests/progress.lua")
+
+do
+    local run = Run.new(19)
+    for id = 1, 2 do
+        run.on_defeat({ id = id, x = run.player.x, y = run.player.y })
+    end
+    assert(Run.update(run, Run.step_seconds * 1.5, 0, 0) == 1 and run.tick == 1)
+    local choice = assert(run.progress.choices)
+    assert(Run.update(run, 1, 1, 0) == 0 and run.tick == 1)
+    assert(not Run.choose(run, choice.token, "bad"))
+    assert(Run.choose(run, choice.token, "weapon") and run.weapons.level == 2)
+    assert(not Run.choose(run, choice.token, "weapon"))
+    assert(Run.update(run, Run.step_seconds / 2, 1, 0) == 0 and run.tick == 1)
+    assert(Run.update(run, Run.step_seconds / 2, 1, 0) == 1 and run.tick == 2)
+end
 
 dofile("tests/platform_probe.lua")
