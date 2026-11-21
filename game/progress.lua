@@ -1,21 +1,16 @@
 local Data = require("data.progress")
-local Weapons = require("game.weapons")
+local Build = require("game.build")
 
 local Progress = {}
 local MAX_LEVEL = #Data.experience_to_next + 1
 
-function Progress.new(randomUnit)
-    assert(type(randomUnit) == "function", "progress requires the run's random source")
+function Progress.new()
     return {
-        randomUnit = randomUnit,
         level = 1,
         xp = 0,
         xpNeeded = Data.experience_to_next[1],
         pickups = {},
         pending = 0,
-        choiceToken = 0,
-        speedUpgrades = 0,
-        healthUpgrades = 0,
     }
 end
 
@@ -40,34 +35,7 @@ function Progress.drop(system, enemy)
 end
 
 local function offerChoice(system, run)
-    if system.pending == 0 then
-        return
-    end
-
-    local options = {}
-    if run.weapons.level < Weapons.max_level(run.weapons) then
-        options[#options + 1] = { id = "weapon", label = "强化当前武器" }
-    end
-    if system.speedUpgrades < Data.max_speed_upgrades then
-        options[#options + 1] = { id = "speed", label = "提升移速" }
-    end
-    if system.healthUpgrades < Data.max_health_upgrades then
-        options[#options + 1] = { id = "health", label = "提升生命上限" }
-    end
-
-    if #options == 0 then
-        system.pending = 0
-        return
-    end
-    for i = #options, 2, -1 do
-        local fraction = system.randomUnit()
-        assert(type(fraction) == "number" and fraction >= 0 and fraction < 1,
-            "random source must return a value in [0, 1)")
-        local pick = math.floor(fraction * i) + 1
-        options[i], options[pick] = options[pick], options[i]
-    end
-    system.choiceToken = system.choiceToken + 1
-    system.choices = { token = system.choiceToken, options = options }
+    system.choices = system.pending > 0 and Build.offer(run.build) or nil
 end
 
 local function gainExperience(system, run, value)
@@ -87,14 +55,14 @@ local function gainExperience(system, run, value)
     offerChoice(system, run)
 end
 
-local function collectGem(gem, player, dt)
+local function collectGem(gem, player, magnetRadius, dt)
     local dx, dy = player.x - gem.x, player.y - gem.y
     local distanceSquared = dx * dx + dy * dy
     local collectRadius = player.radius + Data.gem_radius
     if distanceSquared <= collectRadius * collectRadius then
         return true
     end
-    if gem.attracted or distanceSquared <= Data.magnet_radius * Data.magnet_radius then
+    if gem.attracted or distanceSquared <= magnetRadius * magnetRadius then
         gem.attracted = true
         local distance = math.sqrt(distanceSquared)
         local travel = math.min(Data.magnet_speed * dt, distance)
@@ -115,11 +83,12 @@ function Progress.step(system, run, dt)
     end
 
     local pickups = system.pickups
+    local magnetRadius = Data.magnet_radius * run.weapon_modifiers.magnet_radius
     local count, nextAlive = #pickups, 1
     local gained = 0
     for i = 1, count do
         local gem = pickups[i]
-        if collectGem(gem, run.player, dt) then
+        if collectGem(gem, run.player, magnetRadius, dt) then
             gained = gained + gem.value
         else
             pickups[nextAlive] = gem
@@ -130,44 +99,17 @@ function Progress.step(system, run, dt)
         pickups[i] = nil
     end
     if gained > 0 then
-        gainExperience(system, run, gained)
+        gainExperience(system, run, gained * run.weapon_modifiers.experience)
     end
 end
 
-function Progress.choose(system, run, token, optionId)
-    local choice = system.choices
-    if not choice or token ~= choice.token then
-        return false
-    end
-
-    local offered = false
-    for _, option in ipairs(choice.options) do
-        if option.id == optionId then
-            offered = true
-            break
-        end
-    end
-    if not offered then
-        return false
-    end
-
-    if optionId == "weapon" then
-        if not Weapons.upgrade(run.weapons) then
-            return false
-        end
-    elseif optionId == "speed" then
-        system.speedUpgrades = system.speedUpgrades + 1
-        run.player.speed = run.player.speed + Data.speed_per_upgrade
-    else
-        system.healthUpgrades = system.healthUpgrades + 1
-        run.player.max_health = run.player.max_health + Data.health_per_upgrade
-        run.player.health = run.player.health + Data.health_per_upgrade
-    end
-
-    system.choices = nil
+function Progress.settleChoice(system, run, experienceFraction)
     system.pending = system.pending - 1
-    offerChoice(system, run)
-    return true
+    if experienceFraction and system.xpNeeded then
+        gainExperience(system, run, system.xpNeeded * experienceFraction)
+    else
+        offerChoice(system, run)
+    end
 end
 
 return Progress

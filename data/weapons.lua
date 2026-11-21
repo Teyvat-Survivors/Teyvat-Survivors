@@ -1,5 +1,6 @@
 return {
     wind_blade = {
+        label = "风刃", weight = 18,
         label = "风刃",
         behavior = "projectile",
         levels = {
@@ -9,6 +10,7 @@ return {
         },
     },
     frost_pulse = {
+        label = "霜环", weight = 14,
         label = "霜脉冲",
         behavior = "pulse",
         levels = {
@@ -17,6 +19,7 @@ return {
         },
     },
     ember_field = {
+        label = "余烬阵", weight = 12,
         label = "余烬领域",
         behavior = "field",
         levels = {
