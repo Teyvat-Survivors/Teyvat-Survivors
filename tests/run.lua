@@ -97,4 +97,38 @@ dofile("tests/fields.lua")
 
 dofile("tests/support.lua")
 
+dofile("tests/profile.lua")
+
+do
+    local Profile = require("game.profile")
+    local profile = Profile.load({ version = 0, coins = 400 })
+    assert(Profile.buy(profile, "agility") and Profile.buy(profile, "vitality"))
+    assert(Profile.buy(profile, "resolve") and Profile.buy(profile, "fortune"))
+    local id = assert(Profile.begin_run(profile))
+    local stage = {
+        id = "settlement",
+        duration_ticks = 60,
+        terminal_kind = "target",
+        terminal_timeout_ticks = 20,
+        waves = {
+            capacity = 4, spawnDistance = 0, despawnDistance = 20, contactIntervalTicks = 3,
+            types = { target = { health = 9999, radius = 1, speed = 0, contactDamage = 9999 } },
+            spawns = { { kind = "target", tick = 5, count = 1 } },
+        },
+    }
+    local stats = Profile.stats(profile)
+    local run = Run.new(77, stage, "wind_blade", stats)
+    assert(run.player.max_health == 108 and run.player.speed == 6.25)
+    assert(run.weapon_modifiers.damage == 1.08 and Run.restart(run).weapon_modifiers.damage == 1.08)
+    stats.speed = 999
+    Run.update(run, Run.step_seconds, 1, 0)
+    assert(math.abs(run.player.x - 6.25 / 60) < 1e-9, "run captures its own profile stats")
+    run.loot.coins = 25
+    Run.update(run, 0.25)
+    assert(run.result and run.result.outcome == "defeated" and run.result.coins == 28)
+    assert(Profile.settle(profile, id, run.result))
+    local reloaded = Profile.load(Profile.export(profile))
+    assert(reloaded.coins == 188 and not Profile.settle(reloaded, id, run.result))
+end
+
 dofile("tests/platform_probe.lua")
