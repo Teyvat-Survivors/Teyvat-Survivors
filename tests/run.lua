@@ -136,6 +136,7 @@ dofile("tests/stages.lua")
 dofile("tests/weapon_catalog.lua")
 
 dofile("tests/evolutions.lua")
+dofile("tests/evolution_catalog.lua")
 
 dofile("tests/characters.lua")
 
