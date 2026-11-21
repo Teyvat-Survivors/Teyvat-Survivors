@@ -47,7 +47,9 @@ jobs:
           }
           tar -xzf $archive
           $sourceDir = Join-Path $env:RUNNER_TEMP 'lua-5.3.6/src'
-          $sources = (Get-ChildItem $sourceDir -Filter '*.c' -Exclude 'luac.c').FullName
+          $sources = Get-ChildItem -LiteralPath $sourceDir -Filter '*.c' -File |
+            Where-Object Name -ne 'luac.c' |
+            Select-Object -ExpandProperty FullName
           gcc -O2 -o (Join-Path $sourceDir 'lua.exe') @sources
           $sourceDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
